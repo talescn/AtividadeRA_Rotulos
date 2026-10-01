@@ -1,0 +1,32 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+*.apk
+*.aab
+*.unitypackage
+.vs/
+.vscode/
+.idea/
+.DS_Store
+
+# Vuforia: license key e pacote (138 MB, acima do limite do GitHub)
+Assets/Resources/VuforiaConfiguration.asset
+Assets/Resources/VuforiaConfiguration.asset.meta
+Packages/*.tgz
+
+# Videos de entrega
+*.mp4
