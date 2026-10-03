@@ -2,8 +2,6 @@
 
 Aplicação de **Realidade Aumentada baseada em marcadores** feita com **Unity + Vuforia**. O rótulo de um produto de mercado funciona como marcador: ao apontar a câmera para a embalagem, a **tabela nutricional real** daquele produto aparece na frente dele.
 
-> Atividade 01 da disciplina **Mundos Virtuais e Realidade Aumentada** (Grupo Anchieta), proposta pelo professor Clayton Valdo.
-
 ## Como funciona
 
 1. O Vuforia inicia e o script [`GerenciadorRotulosRA`](Assets/Scripts/GerenciadorRotulosRA.cs) percorre a lista de produtos.
@@ -101,6 +99,3 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 - Escalar para um **catálogo maior** de produtos, por exemplo com o Cloud Recognition do Vuforia.
 - Gerar um build para **Android/iOS**.
 
-## Créditos
-
-Atividade proposta pelo professor **Clayton Valdo**. Desenvolvido por **Tales Noronha** (Grupo Anchieta).
