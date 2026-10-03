@@ -30,3 +30,6 @@ Packages/*.tgz
 
 # Videos de entrega
 *.mp4
+
+# Arquivo de contexto local (nao versionar)
+CLAUDE.md
