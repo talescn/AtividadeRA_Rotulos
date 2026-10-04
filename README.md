@@ -8,8 +8,21 @@ Aplicação de **Realidade Aumentada baseada em marcadores** feita com **Unity +
 2. Para cada produto, a foto do rótulo vira um **Image Target criado em tempo de execução**, com a largura real da embalagem em metros.
 3. Cada target recebe um quad com a foto da tabela nutricional do próprio produto, deitado sobre o plano do rótulo.
 4. Quando o rótulo é reconhecido pela câmera, a tabela aparece. Quando o produto sai de vista, ela some.
+5. A interface ([`InterfaceRotulosRA`](Assets/Scripts/InterfaceRotulosRA.cs)) deixa ampliar a tabela em RA e abrir o **modo leitura**, com a tabela em tela cheia.
 
 Não há nenhum marcador fixo no projeto: trocar de produto é trocar duas fotos.
+
+## Zoom e modo leitura
+
+| Ação | No celular | No Editor (webcam) |
+|---|---|---|
+| Ampliar ou reduzir a tabela em RA (0,5x a 3x) | controle deslizante ou pinça | controle deslizante ou roda do mouse |
+| Abrir o modo leitura | tocar na tabela ou no botão **Ler** | clicar na tabela ou no botão **Ler** |
+| Zoom no modo leitura | pinça | roda do mouse |
+| Mover a tabela no modo leitura | arrastar com um dedo | arrastar com o botão esquerdo |
+| Voltar para a câmera | botão **Fechar** | botão **Fechar** |
+
+O botão **Ler** só aparece quando há um produto na câmera e abre o último que apareceu. O modo leitura continua aberto mesmo que o produto saia da câmera.
 
 ## Produtos de teste
 
@@ -53,9 +66,22 @@ Assets/
 ├── Scenes/
 │   └── AtividadeRA_Rotulos.unity   cena principal
 ├── Scripts/
-│   └── GerenciadorRotulosRA.cs  cria os targets e exibe as tabelas
+│   ├── GerenciadorRotulosRA.cs  cria os targets, exibe as tabelas e aplica o zoom
+│   ├── InterfaceRotulosRA.cs    zoom, pinça, botão Ler e modo leitura
+│   ├── CalculosGestos.cs        contas do zoom, da pinça e do arrasto
+│   └── AjustarAreaSegura.cs     mantém os controles fora do entalhe e das barras do sistema
 └── Editor/
-    └── MontarCenaAtividade.cs   menu que monta a cena automaticamente
+    ├── MontarCenaAtividade.cs   menu que monta a cena automaticamente
+    ├── MontarInterfaceRA.cs     cria a interface (barra de zoom, botão Ler, modo leitura)
+    └── Testes/                  testes de EditMode
+```
+
+## Testes
+
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, e a estrutura da cena montada pelo menu. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+
+```bash
+Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
 ```
 
 ### Configuração por produto
@@ -76,13 +102,15 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 
 1. Coloque as novas fotos em `Assets/Fotos` (`rotuloN.jpg` e `tabelaN.jpg`).
 2. Ajuste nomes e larguras em `Assets/Editor/MontarCenaAtividade.cs`.
-3. Apague a cena atual e use o menu **Atividade RA > Montar cena dos rotulos**. Ele configura a importação das fotos, cria a cena com o `GerenciadorRotulosRA` preenchido e a adiciona ao Build Settings.
+3. Apague a cena atual e use o menu **Atividade RA > Montar cena dos rotulos**. Ele configura a importação das fotos, cria a cena com o `GerenciadorRotulosRA` preenchido e a interface de zoom e leitura, e a adiciona ao Build Settings.
 
 ## Decisões técnicas
 
 - **Image Targets em tempo de execução** (`ObserverFactory.CreateImageTarget`), sem depender de banco de dados criado no portal do Vuforia.
 - **`maxSimultaneousImageTargets: 3`**. Com apenas 1 e *extended tracking*, um produto "prendia" o slot e impedia o reconhecimento do próximo.
 - **Filtro `Tracked`** no `DefaultObserverEventHandler`: a tabela só aparece enquanto o rótulo está realmente visível, evitando tabela "fantasma" na tela depois que o produto sai do campo de visão.
+- **Só o Input System novo**: a pinça usa o EnhancedTouch, o Editor usa o mouse, e o `EventSystem` usa o `InputSystemUIInputModule`.
+- **Toque na tabela por raycast**: o quad da tabela mantém o collider, que o `DefaultObserverEventHandler` liga e desliga junto com a tabela.
 
 ## Limitações conhecidas
 
