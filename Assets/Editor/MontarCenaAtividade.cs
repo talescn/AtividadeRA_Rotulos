@@ -59,10 +59,14 @@ public static class MontarCenaAtividade
         }
         EditorUtility.SetDirty(ger);
 
+        // Zoom, botao "Ler" e modo leitura
+        MontarInterfaceRA.Montar(ger);
+
         EditorSceneManager.MarkSceneDirty(cena);
         Directory.CreateDirectory("Assets/Scenes");
         EditorSceneManager.SaveScene(cena, CenaAtividade);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(CenaAtividade, true) };
+        AssetDatabase.SaveAssets();
         Debug.Log("[RA] Cena da atividade montada: " + CenaAtividade);
     }
 
