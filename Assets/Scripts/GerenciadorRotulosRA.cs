@@ -21,10 +21,30 @@ public class GerenciadorRotulosRA : MonoBehaviour
         public float larguraTabelaMetros = 0.12f;
     }
 
+    // Estado de cada produto enquanto o app roda
+    class ProdutoEmCena
+    {
+        public Produto produto;
+        public Transform tabela;
+        public Vector3 escalaBase;
+    }
+
     public List<Produto> produtos = new List<Produto>();
 
     [Tooltip("Distancia (m) da tabela a frente da superficie do rotulo.")]
     public float distanciaFrente = 0.01f;
+
+    // Avisado sempre que um produto entra ou sai da camera
+    public event System.Action AoMudarRastreamento;
+
+    public float Zoom { get; private set; } = 1f;
+
+    readonly List<ProdutoEmCena> emCena = new List<ProdutoEmCena>();
+    // Produtos visiveis agora, do mais antigo para o mais recente
+    readonly List<ProdutoEmCena> rastreados = new List<ProdutoEmCena>();
+
+    // Ultimo produto que entrou na camera e ainda esta visivel (null se nenhum)
+    public Produto ProdutoEmFoco => rastreados.Count > 0 ? rastreados[rastreados.Count - 1].produto : null;
 
     void Start()
     {
@@ -68,16 +88,24 @@ public class GerenciadorRotulosRA : MonoBehaviour
             // So mostra a tabela enquanto o rotulo esta realmente visivel (evita tabela "fantasma")
             handler.StatusFilter = DefaultObserverEventHandler.TrackingStatusFilter.Tracked;
 
-            CriarTabela(target.transform, p);
+            var item = new ProdutoEmCena { produto = p, tabela = CriarTabela(target.transform, p) };
+            item.escalaBase = item.tabela.localScale;
+            item.tabela.localScale = CalculosGestos.EscalaTabela(item.escalaBase, Zoom);
+            emCena.Add(item);
+
+            // Os mesmos eventos que ligam e desligam a tabela dizem a interface o que esta visivel
+            handler.OnTargetFound.AddListener(() => MarcarRastreado(item, true));
+            handler.OnTargetLost.AddListener(() => MarcarRastreado(item, false));
             Debug.Log($"[RA] Marcador criado: {p.nome}");
         }
     }
 
-    void CriarTabela(Transform pai, Produto p)
+    Transform CriarTabela(Transform pai, Produto p)
     {
         GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
         quad.name = "TabelaNutricional_" + p.nome;
-        Destroy(quad.GetComponent<Collider>());
+        // O MeshCollider do quad fica: e nele que o toque na tabela e detectado.
+        // O DefaultObserverEventHandler desliga o collider junto com a tabela.
 
         quad.transform.SetParent(pai, false);
         // Plano do Image Target = XZ (normal +Y apontando para a camera).
@@ -95,6 +123,30 @@ public class GerenciadorRotulosRA : MonoBehaviour
         if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", p.tabelaNutricional);
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
         quad.GetComponent<MeshRenderer>().material = mat;
+        return quad.transform;
+    }
+
+    // Multiplica o tamanho de todas as tabelas em RA, mantendo a proporcao
+    public void DefinirZoom(float zoom)
+    {
+        Zoom = CalculosGestos.LimitarZoom(zoom);
+        foreach (var item in emCena)
+            item.tabela.localScale = CalculosGestos.EscalaTabela(item.escalaBase, Zoom);
+    }
+
+    // Produto dono da tabela tocada (null se o objeto nao for uma tabela)
+    public Produto ProdutoDaTabela(Transform tabela)
+    {
+        foreach (var item in emCena)
+            if (item.tabela == tabela) return item.produto;
+        return null;
+    }
+
+    void MarcarRastreado(ProdutoEmCena item, bool rastreado)
+    {
+        rastreados.Remove(item);
+        if (rastreado) rastreados.Add(item);
+        AoMudarRastreamento?.Invoke();
     }
 
     static Texture2D CopiarRGBA32(Texture2D origem)
