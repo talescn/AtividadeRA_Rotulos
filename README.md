@@ -32,12 +32,11 @@ Não há nenhum marcador fixo no projeto: trocar de produto é trocar duas fotos
    ```bash
    git clone https://github.com/talescn/AtividadeRA_Rotulos.git
    ```
-2. **Baixe o Vuforia Engine 11.4.4** (arquivo `.tgz`) no [Vuforia Developer Portal](https://developer.vuforia.com/). O arquivo tem cerca de 138 MB, acima do limite do GitHub, por isso não está no repositório.
-3. **Ajuste o caminho do pacote** em `Packages/manifest.json`, apontando a dependência `com.ptc.vuforia.engine` para onde você salvou o `.tgz`.
-4. **Abra o projeto** no Unity Hub.
-5. **Cole sua license key** em *Window > Vuforia Configuration*. A configuração com a chave fica fora do Git (veja o `.gitignore`).
-6. **Abra a cena** `Assets/Scenes/AtividadeRA_Rotulos.unity`, ligue a webcam e aperte **Play**.
-7. Mostre uma embalagem (ou a foto do rótulo na tela) para a câmera.
+2. **Baixe o Vuforia Engine 11.4.4** (arquivo `com.ptc.vuforia.engine-11.4.4.tgz`) no [Vuforia Developer Portal](https://developer.vuforia.com/) e **coloque-o na pasta `Packages/`** do projeto. O `Packages/manifest.json` já aponta para ele com caminho relativo (`file:com.ptc.vuforia.engine-11.4.4.tgz`). O arquivo tem cerca de 138 MB, acima do limite do GitHub, por isso fica fora do repositório (o `.gitignore` ignora `Packages/*.tgz`).
+3. **Abra o projeto** no Unity Hub.
+4. **Cole sua license key** em *Window > Vuforia Configuration*. A configuração com a chave fica fora do Git (veja o `.gitignore`).
+5. **Abra a cena** `Assets/Scenes/AtividadeRA_Rotulos.unity`, ligue a webcam e aperte **Play**.
+6. Mostre uma embalagem (ou a foto do rótulo na tela) para a câmera.
 
 ## Dicas para um bom reconhecimento
 
