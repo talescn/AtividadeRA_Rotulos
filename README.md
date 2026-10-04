@@ -38,6 +38,7 @@ O botão **Ler** só aparece quando há um produto na câmera e abre o último q
 - **Vuforia Engine** 11.4.4 (`com.ptc.vuforia.engine`)
 - Uma **license key** do Vuforia (a gratuita de desenvolvimento serve)
 - Uma **webcam** para testar no Play Mode do Editor
+- Para o celular: o módulo **Android Build Support** do Unity e um aparelho com **Android 10** ou mais novo
 
 ## Como rodar
 
@@ -50,6 +51,33 @@ O botão **Ler** só aparece quando há um produto na câmera e abre o último q
 4. **Cole sua license key** em *Window > Vuforia Configuration*. A configuração com a chave fica fora do Git (veja o `.gitignore`).
 5. **Abra a cena** `Assets/Scenes/AtividadeRA_Rotulos.unity`, ligue a webcam e aperte **Play**.
 6. Mostre uma embalagem (ou a foto do rótulo na tela) para a câmera.
+
+## Gerar o APK (Android)
+
+Requer o módulo **Android Build Support**, com **OpenJDK** e **Android SDK & NDK Tools**, instalado no Unity 6000.6.0f1 pelo Unity Hub.
+
+1. Use o menu **Atividade RA > Gerar build Android**. Ele aplica as configurações abaixo, muda a plataforma para Android e gera `Builds/AtividadeRA_Rotulos.apk` (a pasta `Builds/` fica fora do Git).
+2. Instale num celular com **Android 10 ou mais novo**. Com a depuração USB ligada:
+   ```bash
+   adb install -r Builds/AtividadeRA_Rotulos.apk
+   ```
+   Ou copie o APK para o celular e abra o arquivo (é preciso permitir a instalação de apps desconhecidos).
+3. Na primeira abertura, permita o uso da câmera.
+
+| Configuração | Valor | Motivo |
+|---|---|---|
+| Pacote | `com.talescn.rotulosra` | identificador do app (o template usava o da Unity) |
+| Scripting backend e arquitetura | IL2CPP, ARM64 | o Vuforia não suporta mais armv7 desde a versão 11.2 |
+| Orientação | retrato | |
+| API mínima | 29 (Android 10) | mínimo da [lista de versões suportadas](https://developer.vuforia.com/library/vuforia-engine/platform-support/supported-versions/) do Vuforia |
+| API gráfica | só OpenGL ES 3 | o Vulkan é experimental no Vuforia para Unity |
+| Ponto de entrada | Activity | ponto de entrada clássico do Android |
+
+Pela linha de comando, com o Unity fechado:
+
+```bash
+Unity.exe -batchmode -quit -projectPath . -buildTarget Android -executeMethod GerarBuildAndroid.GerarBuildBatch
+```
 
 ## Dicas para um bom reconhecimento
 
@@ -73,12 +101,13 @@ Assets/
 └── Editor/
     ├── MontarCenaAtividade.cs   menu que monta a cena automaticamente
     ├── MontarInterfaceRA.cs     cria a interface (barra de zoom, botão Ler, modo leitura)
+    ├── GerarBuildAndroid.cs     menu que configura o Android e gera o APK
     └── Testes/                  testes de EditMode
 ```
 
 ## Testes
 
-Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, e a estrutura da cena montada pelo menu. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu e as configurações de Android. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
 
 ```bash
 Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
