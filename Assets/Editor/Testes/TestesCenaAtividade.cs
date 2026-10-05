@@ -62,6 +62,21 @@ public class TestesCenaAtividade
     }
 
     [Test]
+    public void ProdutosComGtinTemJsonLocal()
+    {
+        var gerenciador = Buscar<GerenciadorRotulosRA>();
+        int comGtin = 0;
+        foreach (var p in gerenciador.produtos)
+        {
+            if (string.IsNullOrEmpty(p.gtin)) continue;
+            comGtin++;
+            Assert.IsNotNull(RepositorioProdutos.CarregarLocal(p.gtin), $"{p.nome}: falta Resources/Produtos/{p.gtin}.json");
+        }
+        // Sprite e Ninho; o Maggi espera o GTIN conferido na embalagem
+        Assert.GreaterOrEqual(comGtin, 2);
+    }
+
+    [Test]
     public void EventSystemUsaOInputSystemNovo()
     {
         // O projeto so tem o Input System novo: o StandaloneInputModule daria erro

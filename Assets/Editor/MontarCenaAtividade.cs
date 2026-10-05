@@ -11,6 +11,8 @@ public static class MontarCenaAtividade
     const string CenaAtividade = "Assets/Scenes/AtividadeRA_Rotulos.unity";
 
     static readonly string[] Nomes = { "Sprite", "LeiteNinho", "CremeCebolaMaggi" };
+    // GTINs conferidos na embalagem. O do Maggi ainda falta: sem ele, o Maggi mostra a foto da tabela.
+    static readonly string[] Gtins = { "78939745", "7898215157403", "" };
     static readonly float[] Larguras = { 0.06f, 0.095f, 0.115f };
     static readonly float[] LargurasTabela = { 0.16f, 0.09f, 0.11f };
 
@@ -27,6 +29,11 @@ public static class MontarCenaAtividade
     public static void Montar()
     {
         AssetDatabase.Refresh();
+        if (!GarantirRecursosTMP())
+        {
+            Debug.LogWarning("[RA] Importando os recursos do TextMeshPro. Rode o menu de novo quando a importacao terminar.");
+            return;
+        }
         for (int i = 1; i <= 3; i++)
         {
             AjustarImportacao($"{PastaFotos}/rotulo{i}.jpg");
@@ -51,6 +58,7 @@ public static class MontarCenaAtividade
             ger.produtos.Add(new GerenciadorRotulosRA.Produto
             {
                 nome = Nomes[i],
+                gtin = Gtins[i],
                 rotulo = AssetDatabase.LoadAssetAtPath<Texture2D>($"{PastaFotos}/rotulo{i + 1}.jpg"),
                 tabelaNutricional = AssetDatabase.LoadAssetAtPath<Texture2D>($"{PastaFotos}/tabela{i + 1}.jpg"),
                 larguraRotuloMetros = Larguras[i],
@@ -68,6 +76,36 @@ public static class MontarCenaAtividade
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(CenaAtividade, true) };
         AssetDatabase.SaveAssets();
         Debug.Log("[RA] Cena da atividade montada: " + CenaAtividade);
+    }
+
+    // O TextMeshPro precisa dos recursos essenciais (fonte padrao e TMP Settings) dentro de Assets.
+    // Devolve true se ja estao no projeto; senao comeca a importacao, que termina em segundo plano.
+    public static bool GarantirRecursosTMP()
+    {
+        if (AssetDatabase.FindAssets("t:TMP_Settings").Length > 0) return true;
+        var ugui = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.unity.ugui/package.json");
+        UnityEditor.AssetPackage.Package.Import(ugui.resolvedPath + "/Package Resources/TMP Essential Resources.unitypackage", false);
+        return false;
+    }
+
+    // Pela linha de comando (sem -quit): importa os recursos do TextMeshPro e fecha o Unity quando terminar
+    public static void ImportarRecursosTMPBatch()
+    {
+        AssetDatabase.importPackageCompleted += pacote =>
+        {
+            Debug.Log("[RA] Recursos essenciais do TextMeshPro importados.");
+            EditorApplication.Exit(0);
+        };
+        AssetDatabase.importPackageFailed += (pacote, erro) =>
+        {
+            Debug.LogError("[RA] Falha ao importar os recursos do TextMeshPro: " + erro);
+            EditorApplication.Exit(1);
+        };
+        if (GarantirRecursosTMP())
+        {
+            Debug.Log("[RA] Recursos essenciais do TextMeshPro ja estavam no projeto.");
+            EditorApplication.Exit(0);
+        }
     }
 
     static void AjustarImportacao(string caminho)

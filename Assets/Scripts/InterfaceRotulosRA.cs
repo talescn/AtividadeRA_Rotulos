@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -18,15 +19,16 @@ public class InterfaceRotulosRA : MonoBehaviour
 
     [Header("Tela de RA")]
     public Slider controleZoom;
-    public Text textoZoom;
+    public TMP_Text textoZoom;
     public Button botaoLer;
 
     [Header("Modo leitura")]
     public GameObject painelLeitura;
     [Tooltip("Area em que a tabela pode ser movida; o centro dela e o centro da tabela com zoom 1.")]
     public RectTransform visorLeitura;
+    [Tooltip("Foto da tabela, usada so quando o produto nao tem dados.")]
     public RawImage tabelaLeitura;
-    public Text tituloLeitura;
+    public TMP_Text tituloLeitura;
     public Button botaoFechar;
 
     [Tooltip("Espaco livre em volta da tabela no modo leitura, em unidades do Canvas.")]
@@ -46,6 +48,12 @@ public class InterfaceRotulosRA : MonoBehaviour
     float tempoClique;
     bool cliqueNaUI;
 
+    // O que esta no modo leitura: a tabela desenhada dos dados ou a foto. Os gestos mexem nele.
+    RectTransform conteudoLeitura;
+    // Tabela desenhada dos dados (destruida ao fechar)
+    RectTransform tabelaDadosLeitura;
+    // Escala que faz o conteudo caber inteiro no visor; o zoom da leitura multiplica esta escala
+    float escalaAjuste = 1f;
     float escalaLeitura = 1f;
 
     bool EmLeitura => painelLeitura.activeSelf;
@@ -190,21 +198,39 @@ public class InterfaceRotulosRA : MonoBehaviour
 
     public void AbrirLeitura(GerenciadorRotulosRA.Produto produto)
     {
-        if (produto == null || produto.tabelaNutricional == null) return;
+        if (produto == null) return;
+        DadosProduto dados = gerenciador.DadosDe(produto);
+        if (dados == null && produto.tabelaNutricional == null) return;
 
-        tabelaLeitura.texture = produto.tabelaNutricional;
-        tituloLeitura.text = produto.nome;
+        LimparTabelaDados();
+        if (dados != null)
+        {
+            // Mesma tabela da RA, desenhada a partir dos dados; a foto fica escondida
+            tabelaLeitura.gameObject.SetActive(false);
+            tabelaDadosLeitura = TabelaNutricionalUI.Montar(visorLeitura, dados);
+            conteudoLeitura = tabelaDadosLeitura;
+            tituloLeitura.text = dados.nome;
+        }
+        else
+        {
+            // Sem dados: mostra a foto, no tamanho da imagem (o ajuste a tela vem da escala)
+            tabelaLeitura.gameObject.SetActive(true);
+            tabelaLeitura.texture = produto.tabelaNutricional;
+            tabelaLeitura.rectTransform.sizeDelta = new Vector2(produto.tabelaNutricional.width, produto.tabelaNutricional.height);
+            conteudoLeitura = tabelaLeitura.rectTransform;
+            tituloLeitura.text = produto.nome;
+        }
+
         painelLeitura.SetActive(true);
         AtualizarBotaoLer();
 
         // Comeca com a tabela inteira na tela, centralizada
         var area = visorLeitura.rect.size - Vector2.one * (2f * margemLeitura);
-        var imagem = new Vector2(produto.tabelaNutricional.width, produto.tabelaNutricional.height);
-        var rt = tabelaLeitura.rectTransform;
-        rt.sizeDelta = CalculosGestos.TamanhoAjustado(imagem, area);
-        rt.anchoredPosition = Vector2.zero;
+        Vector2 tamanho = conteudoLeitura.sizeDelta;
+        escalaAjuste = CalculosGestos.TamanhoAjustado(tamanho, area).x / tamanho.x;
         escalaLeitura = 1f;
-        rt.localScale = Vector3.one;
+        conteudoLeitura.anchoredPosition = Vector2.zero;
+        conteudoLeitura.localScale = Vector3.one * escalaAjuste;
         distanciaPinca = -1f;
         dedoArrastando = -1;
     }
@@ -212,14 +238,22 @@ public class InterfaceRotulosRA : MonoBehaviour
     public void FecharLeitura()
     {
         painelLeitura.SetActive(false);
+        LimparTabelaDados();
         distanciaPinca = -1f;
         dedoArrastando = -1;
         AtualizarBotaoLer();
     }
 
+    void LimparTabelaDados()
+    {
+        if (tabelaDadosLeitura != null) Destroy(tabelaDadosLeitura.gameObject);
+        tabelaDadosLeitura = null;
+    }
+
     void GestosLeitura(ReadOnlyArray<Toque> toques)
     {
-        var rt = tabelaLeitura.rectTransform;
+        var rt = conteudoLeitura;
+        if (rt == null) return;
         Vector2 posicao = rt.anchoredPosition;
 
         if (toques.Count >= 2)
@@ -275,8 +309,9 @@ public class InterfaceRotulosRA : MonoBehaviour
                 posicao += ParaVisor(ponteiro) - ParaVisor(ponteiro - mouse.delta.ReadValue());
         }
 
-        rt.localScale = Vector3.one * escalaLeitura;
-        rt.anchoredPosition = CalculosGestos.LimitarDeslocamento(posicao, rt.sizeDelta * escalaLeitura, visorLeitura.rect.size);
+        float escala = escalaAjuste * escalaLeitura;
+        rt.localScale = Vector3.one * escala;
+        rt.anchoredPosition = CalculosGestos.LimitarDeslocamento(posicao, rt.sizeDelta * escala, visorLeitura.rect.size);
     }
 
     // Converte um ponto da tela para as coordenadas do visor (origem no centro)

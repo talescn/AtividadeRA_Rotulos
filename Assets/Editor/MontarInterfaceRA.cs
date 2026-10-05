@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -5,7 +6,7 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 // Cria na cena a interface do zoom e do modo leitura e liga tudo ao InterfaceRotulosRA.
-// Chamado pelo menu "Atividade RA > Montar cena dos rotulos".
+// Chamado pelo menu "Atividade RA > Montar cena dos rotulos". Os textos sao TextMeshPro.
 public static class MontarInterfaceRA
 {
     // Resolucao de referencia: celular em retrato
@@ -17,13 +18,14 @@ public static class MontarInterfaceRA
 
     public static InterfaceRotulosRA Montar(GerenciadorRotulosRA gerenciador)
     {
+        var sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
         var recursos = new DefaultControls.Resources
         {
-            standard = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd"),
+            standard = sprite,
             background = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd"),
             knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd")
         };
-        var fonte = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var recursosTMP = new TMP_DefaultControls.Resources { standard = sprite };
 
         // EventSystem com o modulo do Input System novo (o projeto nao usa o Input Manager antigo)
         if (Object.FindAnyObjectByType<EventSystem>() == null)
@@ -46,10 +48,10 @@ public static class MontarInterfaceRA
         var barra = CriarImagem("BarraZoom", areaRA, CorBarra, recursos.standard);
         Ancorar(barra.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 40f), new Vector2(-40f, 180f));
 
-        var rotuloZoom = CriarTexto("RotuloZoom", barra.transform, fonte, "Zoom", 44, CorTextoClaro, TextAnchor.MiddleLeft);
+        var rotuloZoom = CriarTexto("RotuloZoom", barra.transform, "Zoom", 44, CorTextoClaro, TextAlignmentOptions.Left);
         Ancorar(rotuloZoom.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(30f, 0f), new Vector2(180f, 0f));
 
-        ui.textoZoom = CriarTexto("ValorZoom", barra.transform, fonte, "1,0x", 44, CorTextoClaro, TextAnchor.MiddleRight);
+        ui.textoZoom = CriarTexto("ValorZoom", barra.transform, "1,0x", 44, CorTextoClaro, TextAlignmentOptions.Right);
         Ancorar(ui.textoZoom.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-180f, 0f), new Vector2(-30f, 0f));
 
         var slider = DefaultControls.CreateSlider(recursos);
@@ -66,7 +68,7 @@ public static class MontarInterfaceRA
         ui.controleZoom.maxValue = CalculosGestos.ZoomMaximo;
         ui.controleZoom.value = 1f;
 
-        ui.botaoLer = CriarBotao("BotaoLer", areaRA, recursos, fonte, "Ler");
+        ui.botaoLer = CriarBotao("BotaoLer", areaRA, recursosTMP, "Ler");
         var rtLer = (RectTransform)ui.botaoLer.transform;
         rtLer.anchorMin = rtLer.anchorMax = new Vector2(0.5f, 0f);
         rtLer.pivot = new Vector2(0.5f, 0f);
@@ -88,23 +90,26 @@ public static class MontarInterfaceRA
         Ancorar(visor, Vector2.zero, Vector2.one, new Vector2(0f, 140f), new Vector2(0f, -170f));
         ui.visorLeitura = visor;
 
+        // Foto da tabela: so aparece quando o produto nao tem dados
         var tabela = new GameObject("TabelaLeitura", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
         tabela.transform.SetParent(visor, false);
         tabela.raycastTarget = false;
         tabela.rectTransform.sizeDelta = new Vector2(800f, 800f);
         ui.tabelaLeitura = tabela;
 
-        ui.tituloLeitura = CriarTexto("TituloLeitura", areaLeitura, fonte, "", 52, CorTextoClaro, TextAnchor.MiddleLeft);
+        ui.tituloLeitura = CriarTexto("TituloLeitura", areaLeitura, "", 46, CorTextoClaro, TextAlignmentOptions.Left);
         Ancorar(ui.tituloLeitura.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(40f, -150f), new Vector2(-320f, -30f));
+        ui.tituloLeitura.textWrappingMode = TextWrappingModes.Normal;
+        ui.tituloLeitura.overflowMode = TextOverflowModes.Ellipsis;
 
-        ui.botaoFechar = CriarBotao("BotaoFechar", areaLeitura, recursos, fonte, "Fechar");
+        ui.botaoFechar = CriarBotao("BotaoFechar", areaLeitura, recursosTMP, "Fechar");
         var rtFechar = (RectTransform)ui.botaoFechar.transform;
         rtFechar.anchorMin = rtFechar.anchorMax = rtFechar.pivot = new Vector2(1f, 1f);
         rtFechar.sizeDelta = new Vector2(260f, 120f);
         rtFechar.anchoredPosition = new Vector2(-30f, -30f);
 
-        var dica = CriarTexto("DicaLeitura", areaLeitura, fonte, "Pinça ou roda do mouse: zoom   ·   Arraste: mover",
-            34, new Color(0.75f, 0.75f, 0.75f), TextAnchor.MiddleCenter);
+        var dica = CriarTexto("DicaLeitura", areaLeitura, "Pinça ou roda do mouse: zoom   ·   Arraste: mover",
+            34, new Color(0.75f, 0.75f, 0.75f), TextAlignmentOptions.Center);
         Ancorar(dica.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 30f), new Vector2(-40f, 120f));
 
         painel.gameObject.SetActive(false);
@@ -130,29 +135,28 @@ public static class MontarInterfaceRA
         return imagem;
     }
 
-    static Text CriarTexto(string nome, Transform pai, Font fonte, string conteudo, int tamanho, Color cor, TextAnchor alinhamento)
+    static TextMeshProUGUI CriarTexto(string nome, Transform pai, string conteudo, float tamanho, Color cor, TextAlignmentOptions alinhamento)
     {
-        var texto = new GameObject(nome, typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+        var texto = new GameObject(nome, typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
         texto.transform.SetParent(pai, false);
-        texto.font = fonte;
         texto.text = conteudo;
         texto.fontSize = tamanho;
         texto.color = cor;
         texto.alignment = alinhamento;
+        texto.textWrappingMode = TextWrappingModes.NoWrap;
         texto.raycastTarget = false;
         return texto;
     }
 
-    static Button CriarBotao(string nome, Transform pai, DefaultControls.Resources recursos, Font fonte, string rotulo)
+    static Button CriarBotao(string nome, Transform pai, TMP_DefaultControls.Resources recursos, string rotulo)
     {
-        var go = DefaultControls.CreateButton(recursos);
+        var go = TMP_DefaultControls.CreateButton(recursos);
         go.name = nome;
         go.transform.SetParent(pai, false);
-        var texto = go.GetComponentInChildren<Text>();
-        texto.font = fonte;
+        var texto = go.GetComponentInChildren<TextMeshProUGUI>();
         texto.text = rotulo;
         texto.fontSize = 52;
-        texto.fontStyle = FontStyle.Bold;
+        texto.fontStyle = FontStyles.Bold;
         texto.color = CorTextoBotao;
         texto.raycastTarget = false;
         return go.GetComponent<Button>();
