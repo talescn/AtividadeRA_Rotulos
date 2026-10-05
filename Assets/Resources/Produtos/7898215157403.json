@@ -1,0 +1,32 @@
+{
+  "gtin": "7898215157403",
+  "nome": "Leite UHT Integral Ninho Forti+ 1 L",
+  "marca": "Nestlé",
+  "conferidoEm": "2026-10-05",
+  "fonte": "rotulo",
+  "porcao": { "descricao": "1 copo", "quantidade": 200, "unidade": "ml" },
+  "porcoesPorEmbalagem": 5,
+  "base100": "100 ml",
+  "observacaoBase100": null,
+  "nutrientes": [
+    { "chave": "energia", "nome": "Valor energético", "unidade": "kcal", "por100": 59, "porPorcao": 118, "vd": 6, "nivel": 0 },
+    { "chave": "carboidratos", "nome": "Carboidratos", "unidade": "g", "por100": 4.4, "porPorcao": 8.8, "vd": 3, "nivel": 0 },
+    { "chave": "acucaresTotais", "nome": "Açúcares totais", "unidade": "g", "por100": 4.4, "porPorcao": 8.8, "vd": null, "nivel": 1 },
+    { "chave": "acucaresAdicionados", "nome": "Açúcares adicionados", "unidade": "g", "por100": 0, "porPorcao": 0, "vd": 0, "nivel": 2 },
+    { "chave": "proteinas", "nome": "Proteínas", "unidade": "g", "por100": 3.1, "porPorcao": 6.2, "vd": 12, "nivel": 0 },
+    { "chave": "gordurasTotais", "nome": "Gorduras totais", "unidade": "g", "por100": 3.2, "porPorcao": 6.4, "vd": 10, "nivel": 0 },
+    { "chave": "gordurasSaturadas", "nome": "Gorduras saturadas", "unidade": "g", "por100": 2, "porPorcao": 4, "vd": 20, "nivel": 1 },
+    { "chave": "gordurasTrans", "nome": "Gorduras trans", "unidade": "g", "por100": 0, "porPorcao": 0, "vd": 0, "nivel": 1 },
+    { "chave": "fibras", "nome": "Fibras alimentares", "unidade": "g", "por100": 0, "porPorcao": 0, "vd": 0, "nivel": 0 },
+    { "chave": "sodio", "nome": "Sódio", "unidade": "mg", "por100": 63, "porPorcao": 126, "vd": 6, "nivel": 0 },
+    { "chave": "vitaminaA", "nome": "Vitamina A", "unidade": "µg", "por100": 120, "porPorcao": 240, "vd": 30, "nivel": 0 },
+    { "chave": "vitaminaD", "nome": "Vitamina D", "unidade": "µg", "por100": 2.3, "porPorcao": 4.5, "vd": 30, "nivel": 0 },
+    { "chave": "vitaminaE", "nome": "Vitamina E", "unidade": "mg", "por100": 2.3, "porPorcao": 4.5, "vd": 30, "nivel": 0 },
+    { "chave": "vitaminaC", "nome": "Vitamina C", "unidade": "mg", "por100": 15, "porPorcao": 30, "vd": 30, "nivel": 0 },
+    { "chave": "calcio", "nome": "Cálcio", "unidade": "mg", "por100": 150, "porPorcao": 300, "vd": 30, "nivel": 0 },
+    { "chave": "ferro", "nome": "Ferro", "unidade": "mg", "por100": 2.1, "porPorcao": 4.2, "vd": 30, "nivel": 0 },
+    { "chave": "zinco", "nome": "Zinco", "unidade": "mg", "por100": 1.7, "porPorcao": 3.3, "vd": 30, "nivel": 0 }
+  ],
+  "ingredientes": null,
+  "alergenos": null
+}
