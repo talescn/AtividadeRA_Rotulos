@@ -114,7 +114,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
 
             // Sem dado local: tenta o Open Food Facts; se nao vier nada, fica a foto
             if (dados == null && !string.IsNullOrEmpty(p.gtin))
-                StartCoroutine(repositorio.BuscarOpenFoodFacts(p.gtin, recebidos => AoReceberDados(item, recebidos)));
+                StartCoroutine(repositorio.BuscarOpenFoodFacts(p.gtin, (recebidos, motivo) => AoReceberDados(item, recebidos)));
         }
     }
 

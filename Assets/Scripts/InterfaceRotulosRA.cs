@@ -138,7 +138,7 @@ public class InterfaceRotulosRA : MonoBehaviour
 
         buscandoCodigo = true;
         MostrarAviso($"Código {gtin}: buscando no Open Food Facts...", 20f);
-        StartCoroutine(gerenciador.Repositorio.BuscarOpenFoodFacts(gtin, recebidos =>
+        StartCoroutine(gerenciador.Repositorio.BuscarOpenFoodFacts(gtin, (recebidos, motivo) =>
         {
             buscandoCodigo = false;
             if (recebidos != null)
@@ -148,7 +148,7 @@ public class InterfaceRotulosRA : MonoBehaviour
             }
             else
             {
-                MostrarAviso($"Não encontrei a tabela do código {gtin}.", 5f);
+                MostrarAviso($"Código {gtin}: {motivo}.", 6f);
             }
         }));
     }

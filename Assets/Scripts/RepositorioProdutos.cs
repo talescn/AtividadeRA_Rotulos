@@ -104,14 +104,14 @@ public class RepositorioProdutos
         }
     }
 
-    // Passo 3, em corrotina. Chama aoTerminar com os dados ou com null
-    // (sem internet, produto fora da base, base sem tabela ou limite de consultas atingido).
-    public IEnumerator BuscarOpenFoodFacts(string gtin, Action<DadosProduto> aoTerminar)
+    // Passo 3, em corrotina. Chama aoTerminar com os dados, ou com null e o motivo, para mostrar ao usuario
+    // (sem internet, produto fora da base, base sem tabela, tabela impossivel ou limite de consultas atingido).
+    public IEnumerator BuscarOpenFoodFacts(string gtin, Action<DadosProduto, string> aoTerminar)
     {
         if (!limite.TentarRegistrar(Time.realtimeSinceStartup))
         {
             Debug.LogWarning($"[RA] Limite de 15 consultas por minuto ao Open Food Facts; {gtin} fica sem consulta.");
-            aoTerminar(null);
+            aoTerminar(null, "muitas consultas seguidas; tente de novo em um minuto");
             yield break;
         }
 
@@ -124,36 +124,49 @@ public class RepositorioProdutos
             if (req.responseCode == 404)
             {
                 Debug.Log($"[RA] {gtin} nao esta no Open Food Facts.");
-                aoTerminar(null);
+                aoTerminar(null, "não está no Open Food Facts");
                 yield break;
             }
             if (req.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogWarning($"[RA] Open Food Facts indisponivel para {gtin}: {req.error}");
-                aoTerminar(null);
+                aoTerminar(null, "sem conexão com o Open Food Facts");
                 yield break;
             }
 
-            DadosProduto dados = null;
+            DadosProduto dados;
+            bool encontrado;
             try
             {
-                dados = ConverterOpenFoodFacts(req.downloadHandler.text);
+                string texto = req.downloadHandler.text;
+                encontrado = Numero(JObject.Parse(texto)["status"]) == 1f;
+                dados = ConverterOpenFoodFacts(texto);
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[RA] Resposta do Open Food Facts nao entendida para {gtin}: {e.Message}");
+                aoTerminar(null, "resposta do Open Food Facts não entendida");
+                yield break;
+            }
+
+            if (dados == null)
+            {
+                Debug.Log($"[RA] {gtin} {(encontrado ? "esta no Open Food Facts, mas sem tabela nutricional" : "nao esta no Open Food Facts")}.");
+                aoTerminar(null, encontrado ? "está no Open Food Facts, mas sem tabela nutricional" : "não está no Open Food Facts");
+                yield break;
             }
 
             // A base e aberta e tem cadastros errados: melhor nao mostrar nada do que uma tabela impossivel
-            string problema = dados != null ? MotivoImplausivel(dados) : null;
+            string problema = MotivoImplausivel(dados);
             if (problema != null)
             {
                 Debug.LogWarning($"[RA] Dados do Open Food Facts para {gtin} recusados: {problema}");
-                dados = null;
+                aoTerminar(null, "a tabela do Open Food Facts tem valores impossíveis");
+                yield break;
             }
 
-            if (dados != null) SalvarCache(dados);
-            aoTerminar(dados);
+            SalvarCache(dados);
+            aoTerminar(dados, null);
         }
     }
 
