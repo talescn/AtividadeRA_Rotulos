@@ -1,0 +1,24 @@
+{
+  "gtin": "78938571",
+  "nome": "Fanta Uva 200 ml",
+  "marca": "Fanta",
+  "conferidoEm": "2026-10-06",
+  "fonte": "rotulo",
+  "porcao": { "descricao": "1 copo", "quantidade": 200, "unidade": "ml" },
+  "porcoesPorEmbalagem": null,
+  "base100": "100 ml",
+  "observacaoBase100": null,
+  "nutrientes": [
+    { "chave": "energia", "nome": "Valor energético", "unidade": "kcal", "por100": null, "porPorcao": 47, "vd": 2, "nivel": 0 },
+    { "chave": "carboidratos", "nome": "Carboidratos", "unidade": "g", "por100": null, "porPorcao": 12, "vd": 4, "nivel": 0 },
+    { "chave": "acucaresTotais", "nome": "Açúcares", "unidade": "g", "por100": null, "porPorcao": 10, "vd": null, "nivel": 1 },
+    { "chave": "proteinas", "nome": "Proteínas", "unidade": "g", "por100": null, "porPorcao": 0, "vd": 0, "nivel": 0 },
+    { "chave": "gordurasTotais", "nome": "Gorduras totais", "unidade": "g", "por100": null, "porPorcao": 0, "vd": 0, "nivel": 0 },
+    { "chave": "gordurasSaturadas", "nome": "Gorduras saturadas", "unidade": "g", "por100": null, "porPorcao": 0, "vd": 0, "nivel": 1 },
+    { "chave": "gordurasTrans", "nome": "Gorduras trans", "unidade": "g", "por100": null, "porPorcao": 0, "vd": 0, "nivel": 1 },
+    { "chave": "fibras", "nome": "Fibras alimentares", "unidade": "g", "por100": null, "porPorcao": 0, "vd": 0, "nivel": 0 },
+    { "chave": "sodio", "nome": "Sódio", "unidade": "mg", "por100": null, "porPorcao": 31, "vd": 1, "nivel": 0 }
+  ],
+  "ingredientes": null,
+  "alergenos": null
+}

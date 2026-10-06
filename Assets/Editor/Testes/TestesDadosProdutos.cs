@@ -68,9 +68,17 @@ public class TestesDadosProdutos
         foreach (var arquivo in Arquivos())
         {
             var d = RepositorioProdutos.Ler(arquivo.text);
-            VerificarEnergia(d, n => n.por100, d.base100);
+            // Rotulo no modelo antigo (RDC 360, ex.: Fanta Uva) so traz a porcao: a coluna "por 100" fica toda null
+            if (ColunaPreenchida(d, n => n.por100)) VerificarEnergia(d, n => n.por100, d.base100);
             VerificarEnergia(d, n => n.porPorcao, "porcao");
         }
+    }
+
+    static bool ColunaPreenchida(DadosProduto d, Func<DadosProduto.Nutriente, float?> coluna)
+    {
+        foreach (var n in d.nutrientes)
+            if (coluna(n).HasValue) return true;
+        return false;
     }
 
     static void VerificarEnergia(DadosProduto d, Func<DadosProduto.Nutriente, float?> coluna, string nomeColuna)
