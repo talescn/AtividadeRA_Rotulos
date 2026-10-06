@@ -9,6 +9,7 @@ Aplicação de **Realidade Aumentada baseada em marcadores** feita com **Unity +
 3. Os dados do produto são buscados pelo **GTIN** (o número do código de barras), e a tabela nutricional é **desenhada com TextMeshPro**, deitada sobre o plano do rótulo. Sem dados, aparece a foto da tabela.
 4. Quando o rótulo é reconhecido pela câmera, a tabela aparece. Quando o produto sai de vista, ela some.
 5. A interface ([`InterfaceRotulosRA`](Assets/Scripts/InterfaceRotulosRA.cs)) deixa ampliar a tabela em RA e abrir o **modo leitura**, com a tabela em tela cheia.
+6. Sem nenhum rótulo na câmera, o app procura um **código de barras**. Com o GTIN lido, ele busca os dados e abre a tabela no modo leitura, inclusive de produtos que não têm rótulo cadastrado.
 
 Não há nenhum marcador fixo no projeto: trocar de produto é trocar a foto do rótulo e o JSON com os dados.
 
@@ -24,13 +25,22 @@ Não há nenhum marcador fixo no projeto: trocar de produto é trocar a foto do 
 
 O botão **Ler** só aparece quando há um produto na câmera e abre o último que apareceu. O modo leitura continua aberto mesmo que o produto saia da câmera.
 
+## Código de barras
+
+Quando nenhum rótulo está na câmera, a faixa do topo mostra "Aponte para o rótulo ou para o código de barras" e o [`LeitorCodigoBarras`](Assets/Scripts/LeitorCodigoBarras.cs) procura códigos **EAN-13, EAN-8 e UPC-A** na imagem da câmera do Vuforia, algumas vezes por segundo e fora da thread principal.
+
+- A leitura usa o [ZXing.Net](https://github.com/micjahn/ZXing.Net/) 0.16.11 (Apache-2.0), em `Assets/Plugins/ZXing`. O leitor do próprio Vuforia exige o plano Premium para publicar.
+- Um código só vale depois de duas leituras iguais e com o dígito verificador correto. O mesmo código é ignorado por 8 s depois de aceito.
+- Com o GTIN, os dados vêm do JSON local, do cache ou do Open Food Facts, nessa ordem. Se não houver tabela, a faixa diz o motivo: fora da base, na base sem tabela, sem conexão ou valores impossíveis.
+- Tabelas fisicamente impossíveis vindas do Open Food Facts são recusadas: mais de 100 g de um nutriente em 100 g, macronutriente maior que a porção ou energia mais de 30% longe de 4 × C + 4 × P + 9 × G.
+
 ## Produtos de teste
 
 | Produto | GTIN | Marcador | Tabela |
 |---|---|---|---|
 | Sprite (garrafa 200 ml) | 78939745 | `Assets/Fotos/rotulo1.jpg` | dados de `Resources/Produtos/78939745.json` |
 | Leite Ninho Integral Forti+ (1 L) | 7898215157403 | `Assets/Fotos/rotulo2.jpg` | dados de `Resources/Produtos/7898215157403.json` |
-| Creme de Cebola Maggi (68 g) | a conferir na embalagem | `Assets/Fotos/rotulo3.jpg` | foto `Assets/Fotos/tabela3.jpg` (até o GTIN ser conferido) |
+| Creme de Cebola Maggi (68 g) | 7891000538500 | `Assets/Fotos/rotulo3.jpg` | dados de `Resources/Produtos/7891000538500.json` |
 
 ## Dados dos produtos
 
@@ -122,6 +132,9 @@ Assets/
 │   ├── DadosProduto.cs          modelo dos dados de um produto
 │   ├── RepositorioProdutos.cs   busca os dados: JSON local, cache e Open Food Facts
 │   ├── LimiteRequisicoes.cs     limite de consultas por minuto
+│   ├── LeitorCodigoBarras.cs    lê o código de barras na imagem da câmera do Vuforia
+│   ├── DecodificadorBarras.cs   decodifica EAN-13, EAN-8 e UPC-A com o ZXing
+│   ├── LeituraEstavel.cs        confirma o código em duas leituras iguais
 │   ├── CalculosGestos.cs        contas do zoom, da pinça e do arrasto
 │   └── AjustarAreaSegura.cs     mantém os controles fora do entalhe e das barras do sistema
 ├── Editor/
@@ -130,13 +143,14 @@ Assets/
 │   ├── GerarBuildAndroid.cs     menu que configura o Android e gera o APK
 │   ├── GerarPreviaTabelas.cs    menu que salva um PNG de cada tabela em Builds/Previas
 │   └── Testes/                  testes de EditMode
+├── Plugins/ZXing/               ZXing.Net (DLL, licença e origem)
 ├── TextMesh Pro/                recursos essenciais do TextMeshPro (fonte e configurações)
 └── link.xml                     evita que o IL2CPP remova as classes lidas do JSON
 ```
 
 ## Testes
 
-Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório e a tabela desenhada. Nenhum teste usa a rede. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada e o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas). Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
 
 ```bash
 Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
@@ -160,7 +174,7 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 ## Como trocar ou adicionar produtos
 
 1. Coloque as novas fotos em `Assets/Fotos` (`rotuloN.jpg` e, como reserva, `tabelaN.jpg`).
-2. Crie `Assets/Resources/Produtos/{gtin}.json` transcrevendo a tabela do rótulo (veja os dois JSONs existentes). Os testes conferem os campos e o valor energético.
+2. Crie `Assets/Resources/Produtos/{gtin}.json` transcrevendo a tabela do rótulo (veja os JSONs existentes). Os testes conferem os campos e o valor energético.
 3. Ajuste nomes, GTINs e larguras em `Assets/Editor/MontarCenaAtividade.cs`.
 4. Apague a cena atual e use o menu **Atividade RA > Montar cena dos rotulos**. Ele configura a importação das fotos, cria a cena com o `GerenciadorRotulosRA` preenchido e a interface de zoom e leitura, e a adiciona ao Build Settings.
 5. Para conferir o desenho da tabela sem câmera, use **Atividade RA > Gerar previa das tabelas**.
@@ -175,17 +189,18 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 - **Tabela em um Canvas no espaço**, sobre o rótulo, com o mesmo desenho usado no modo leitura. O texto em TextMeshPro fica nítido em qualquer zoom.
 - **JSON local antes do cache e do Open Food Facts**: a transcrição do rótulo é a referência; a base aberta só completa o que falta.
 - **Newtonsoft Json** para ler campos nulos (o `JsonUtility` não aceita número nulo) e a resposta do Open Food Facts.
+- **Leitor de código de barras só depois de criados os marcadores**: o registro do formato da câmera espera o `GerenciadorRotulosRA` ficar pronto, e a imagem é pedida no `World.OnStateUpdated`, como na documentação do Vuforia. Pedir a imagem enquanto os marcadores eram criados derrubou o app uma vez no celular.
 
 ## Limitações conhecidas
 
 - Os dados de cada produto são **transcritos à mão** do rótulo. Se o fabricante mudar a receita ou a tabela, é preciso atualizar o JSON.
-- O app só **reconhece os produtos cadastrados** (a foto do rótulo vira o marcador). Produtos novos dependem de leitura de código de barras ou de reconhecimento em nuvem.
+- Pela imagem, o app só **reconhece os produtos cadastrados** (a foto do rótulo vira o marcador). Os outros só pelo código de barras, e a tabela deles abre no modo leitura, sem RA.
 - A cobertura do Open Food Facts para produtos brasileiros é **desigual**: em outubro de 2026, o Ninho tinha a tabela igual à do rótulo, o Sprite 200 ml não tinha nenhum nutriente e o Maggi 68 g tinha valores inconsistentes.
 - Reconhecimento menos estável em superfícies curvas e com reflexo.
 
 ## Ideias de evolução
 
-- Ler o **código de barras** para identificar qualquer produto e buscar os dados pelo GTIN.
+- **Ensinar um produto novo**: depois de lido o código de barras, tirar a foto do rótulo no próprio app e criar o marcador, para o produto passar a ser reconhecido pela imagem.
 - Ler o texto do rótulo com **OCR** e extrair a tabela nutricional e os ingredientes automaticamente.
 - Destacar **alérgenos e substâncias** que cada pessoa quer evitar, e ler a tabela em voz alta.
 - Escalar para um **catálogo maior** de produtos, por exemplo com o Cloud Recognition do Vuforia.
