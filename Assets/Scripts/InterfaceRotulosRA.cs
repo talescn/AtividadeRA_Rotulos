@@ -118,8 +118,8 @@ public class InterfaceRotulosRA : MonoBehaviour
                 toqueComecouNaUI.Remove(t.touchId);
         if (toques.Count == 0) houveMultiToque = false;
 
-        // O codigo de barras so e procurado quando nenhum rotulo esta na camera
-        bool procurando = !EmLeitura && !buscandoCodigo && gerenciador.ProdutoEmFoco == null;
+        // O codigo de barras so e procurado depois de criados os marcadores e quando nenhum rotulo esta na camera
+        bool procurando = gerenciador.Pronto && !EmLeitura && !buscandoCodigo && gerenciador.ProdutoEmFoco == null;
         if (leitorCodigo != null) leitorCodigo.Ativo = procurando;
         AtualizarAviso(procurando);
     }

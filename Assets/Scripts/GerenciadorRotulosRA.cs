@@ -56,6 +56,10 @@ public class GerenciadorRotulosRA : MonoBehaviour
     // Usado tambem pela interface, para os produtos lidos pelo codigo de barras
     public RepositorioProdutos Repositorio => repositorio ??= RepositorioProdutos.Padrao();
 
+    // Todos os marcadores ja foram criados. O leitor de codigo de barras so mexe na camera depois disso:
+    // pedir a imagem da camera enquanto o Vuforia cria os marcadores derrubou o app uma vez no celular.
+    public bool Pronto { get; private set; }
+
     void Start()
     {
         repositorio = Repositorio;
@@ -116,6 +120,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
             if (dados == null && !string.IsNullOrEmpty(p.gtin))
                 StartCoroutine(repositorio.BuscarOpenFoodFacts(p.gtin, (recebidos, motivo) => AoReceberDados(item, recebidos)));
         }
+        Pronto = true;
     }
 
     void AoReceberDados(ProdutoEmCena item, DadosProduto dados)
