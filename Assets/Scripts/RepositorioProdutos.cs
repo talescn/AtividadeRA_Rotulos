@@ -144,6 +144,14 @@ public class RepositorioProdutos
                 Debug.LogWarning($"[RA] Resposta do Open Food Facts nao entendida para {gtin}: {e.Message}");
             }
 
+            // A base e aberta e tem cadastros errados: melhor nao mostrar nada do que uma tabela impossivel
+            string problema = dados != null ? MotivoImplausivel(dados) : null;
+            if (problema != null)
+            {
+                Debug.LogWarning($"[RA] Dados do Open Food Facts para {gtin} recusados: {problema}");
+                dados = null;
+            }
+
             if (dados != null) SalvarCache(dados);
             aoTerminar(dados);
         }
@@ -189,6 +197,32 @@ public class RepositorioProdutos
             }
         }
         return dados.TemTabela ? dados : null;
+    }
+
+    // Devolve o motivo se a tabela for fisicamente impossivel; null se estiver plausivel.
+    // Na tabela do rotulo a tolerancia de energia e 15%; aqui e maior porque a base mistura arredondamentos.
+    public static string MotivoImplausivel(DadosProduto dados)
+    {
+        const float ToleranciaEnergia = 0.3f;
+        float? porcao = dados.porcao?.quantidade;
+        foreach (var n in dados.nutrientes)
+        {
+            if (n.unidade != "g") continue;
+            if (n.por100 > 100f) return $"{n.nome} com {n.por100} g em 100";
+            if (porcao.HasValue && n.porPorcao > porcao.Value) return $"{n.nome} com {n.porPorcao} g numa porcao de {porcao} {dados.porcao.unidade}";
+        }
+
+        float? kcal = dados.Buscar("energia")?.por100;
+        float? carboidratos = dados.Buscar("carboidratos")?.por100;
+        float? proteinas = dados.Buscar("proteinas")?.por100;
+        float? gorduras = dados.Buscar("gordurasTotais")?.por100;
+        if (kcal > 0f && carboidratos.HasValue && proteinas.HasValue && gorduras.HasValue)
+        {
+            float calculado = 4f * carboidratos.Value + 4f * proteinas.Value + 9f * gorduras.Value;
+            if (Math.Abs(kcal.Value - calculado) / kcal.Value > ToleranciaEnergia)
+                return $"{kcal} kcal em 100, mas os macronutrientes dao {calculado:0} kcal";
+        }
+        return null;
     }
 
     public static DadosProduto Ler(string json)

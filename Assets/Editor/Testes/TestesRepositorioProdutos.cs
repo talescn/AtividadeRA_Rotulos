@@ -133,6 +133,36 @@ public class TestesRepositorioProdutos
     }
 
     [Test]
+    public void AceitaATabelaPlausivelDoNinho()
+    {
+        Assert.IsNull(RepositorioProdutos.MotivoImplausivel(RepositorioProdutos.ConverterOpenFoodFacts(RespostaNinho())));
+        // As transcricoes dos rotulos tambem passam
+        Assert.IsNull(RepositorioProdutos.MotivoImplausivel(RepositorioProdutos.CarregarLocal("78939745")));
+        Assert.IsNull(RepositorioProdutos.MotivoImplausivel(RepositorioProdutos.CarregarLocal("7898215157403")));
+    }
+
+    [Test]
+    public void RecusaTabelaImpossivelComoADoMaggiNaBase()
+    {
+        // Valores que o Open Food Facts tinha em 05/10/2026 para o 7891000538500 (Creme de Cebola Maggi 68 g)
+        string json = "{\"code\":\"7891000538500\",\"status\":1,\"product\":{\"product_name\":\"Creme Cebola Maggi Pacote 68g\"," +
+                      "\"serving_size\":\"6gm\",\"serving_quantity\":6,\"nutriments\":{\"energy-kcal_100g\":833.33," +
+                      "\"carbohydrates_100g\":116.67,\"proteins_100g\":16.67,\"fat_100g\":25,\"energy-kcal_serving\":50," +
+                      "\"carbohydrates_serving\":7,\"proteins_serving\":1,\"fat_serving\":1.5}}}";
+        var dados = RepositorioProdutos.ConverterOpenFoodFacts(json);
+        Assert.IsNotNull(dados, "a resposta tem tabela; quem recusa e a checagem de plausibilidade");
+        StringAssert.Contains("Carboidratos", RepositorioProdutos.MotivoImplausivel(dados));
+    }
+
+    [Test]
+    public void RecusaEnergiaMuitoLongeDosMacronutrientes()
+    {
+        string json = "{\"code\":\"7891000000001\",\"status\":1,\"product\":{\"nutriments\":{\"energy-kcal_100g\":400," +
+                      "\"carbohydrates_100g\":10,\"proteins_100g\":1,\"fat_100g\":1}}}";
+        StringAssert.Contains("kcal", RepositorioProdutos.MotivoImplausivel(RepositorioProdutos.ConverterOpenFoodFacts(json)));
+    }
+
+    [Test]
     public void UserAgentSegueOFormatoPedidoPeloOpenFoodFacts()
     {
         StringAssert.IsMatch(@"^AtividadeRA_Rotulos/\S+ \(https://github\.com/talescn/AtividadeRA_Rotulos\)$", RepositorioProdutos.UserAgent);
