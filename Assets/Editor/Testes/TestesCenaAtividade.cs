@@ -120,4 +120,15 @@ public class TestesCenaAtividade
         Assert.IsFalse(ui.painelLeitura.activeSelf);
         Assert.IsFalse(ui.botaoLer.gameObject.activeSelf);
     }
+
+    [Test]
+    public void LeitorDeCodigoDeBarrasEstaLigadoAInterface()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        Assert.IsNotNull(ui.leitorCodigo, "falta o LeitorCodigoBarras");
+        Assert.IsNotNull(ui.faixaAviso);
+        Assert.IsNotNull(ui.textoAviso);
+        Assert.IsTrue(ui.textoAviso.transform.IsChildOf(ui.faixaAviso.transform));
+        Assert.IsFalse(ui.faixaAviso.activeSelf, "a faixa so aparece quando ha dica ou aviso");
+    }
 }

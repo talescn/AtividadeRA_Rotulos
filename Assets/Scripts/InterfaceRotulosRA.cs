@@ -34,6 +34,17 @@ public class InterfaceRotulosRA : MonoBehaviour
     [Tooltip("Espaco livre em volta da tabela no modo leitura, em unidades do Canvas.")]
     public float margemLeitura = 40f;
 
+    [Header("Codigo de barras")]
+    public LeitorCodigoBarras leitorCodigo;
+    [Tooltip("Faixa no topo da tela com a dica e os avisos da leitura do codigo de barras.")]
+    public GameObject faixaAviso;
+    public TMP_Text textoAviso;
+
+    const string Dica = "Aponte para o rótulo ou para o código de barras";
+    string aviso;
+    float avisoAte;
+    bool buscandoCodigo;
+
     readonly List<RaycastResult> resultadosUI = new List<RaycastResult>();
     // Se cada dedo comecou em cima de um controle (nesse caso o gesto e da UI, nao da tabela)
     readonly Dictionary<int, bool> toqueComecouNaUI = new Dictionary<int, bool>();
@@ -71,12 +82,14 @@ public class InterfaceRotulosRA : MonoBehaviour
     {
         EnhancedTouchSupport.Enable();
         gerenciador.AoMudarRastreamento += AtualizarBotaoLer;
+        if (leitorCodigo != null) leitorCodigo.AoLerCodigo += AoLerCodigo;
     }
 
     void OnDisable()
     {
         EnhancedTouchSupport.Disable();
         gerenciador.AoMudarRastreamento -= AtualizarBotaoLer;
+        if (leitorCodigo != null) leitorCodigo.AoLerCodigo -= AoLerCodigo;
     }
 
     void Start()
@@ -104,6 +117,56 @@ public class InterfaceRotulosRA : MonoBehaviour
             if (t.phase == FaseToque.Ended || t.phase == FaseToque.Canceled)
                 toqueComecouNaUI.Remove(t.touchId);
         if (toques.Count == 0) houveMultiToque = false;
+
+        // O codigo de barras so e procurado quando nenhum rotulo esta na camera
+        bool procurando = !EmLeitura && !buscandoCodigo && gerenciador.ProdutoEmFoco == null;
+        if (leitorCodigo != null) leitorCodigo.Ativo = procurando;
+        AtualizarAviso(procurando);
+    }
+
+    // ---------- Codigo de barras ----------
+
+    void AoLerCodigo(string gtin)
+    {
+        // JSON local ou cache: abre na hora
+        DadosProduto dados = gerenciador.Repositorio.BuscarSemRede(gtin);
+        if (dados != null && dados.TemTabela)
+        {
+            AbrirLeitura(dados);
+            return;
+        }
+
+        buscandoCodigo = true;
+        MostrarAviso($"Código {gtin}: buscando no Open Food Facts...", 20f);
+        StartCoroutine(gerenciador.Repositorio.BuscarOpenFoodFacts(gtin, recebidos =>
+        {
+            buscandoCodigo = false;
+            if (recebidos != null)
+            {
+                MostrarAviso(null, 0f);
+                AbrirLeitura(recebidos);
+            }
+            else
+            {
+                MostrarAviso($"Não encontrei a tabela do código {gtin}.", 5f);
+            }
+        }));
+    }
+
+    void MostrarAviso(string texto, float segundos)
+    {
+        aviso = texto;
+        avisoAte = Time.unscaledTime + segundos;
+    }
+
+    // Faixa do topo: um aviso recente ou, enquanto procura, a dica de para onde apontar
+    void AtualizarAviso(bool procurando)
+    {
+        if (faixaAviso == null) return;
+        string texto = !string.IsNullOrEmpty(aviso) && Time.unscaledTime < avisoAte ? aviso : procurando ? Dica : null;
+        bool mostrar = texto != null && !EmLeitura;
+        if (faixaAviso.activeSelf != mostrar) faixaAviso.SetActive(mostrar);
+        if (mostrar && textoAviso.text != texto) textoAviso.text = texto;
     }
 
     // ---------- Tela de RA ----------
@@ -200,27 +263,35 @@ public class InterfaceRotulosRA : MonoBehaviour
     {
         if (produto == null) return;
         DadosProduto dados = gerenciador.DadosDe(produto);
-        if (dados == null && produto.tabelaNutricional == null) return;
-
-        LimparTabelaDados();
         if (dados != null)
         {
-            // Mesma tabela da RA, desenhada a partir dos dados; a foto fica escondida
-            tabelaLeitura.gameObject.SetActive(false);
-            tabelaDadosLeitura = TabelaNutricionalUI.Montar(visorLeitura, dados);
-            conteudoLeitura = tabelaDadosLeitura;
-            tituloLeitura.text = dados.nome;
+            AbrirLeitura(dados);
+            return;
         }
-        else
-        {
-            // Sem dados: mostra a foto, no tamanho da imagem (o ajuste a tela vem da escala)
-            tabelaLeitura.gameObject.SetActive(true);
-            tabelaLeitura.texture = produto.tabelaNutricional;
-            tabelaLeitura.rectTransform.sizeDelta = new Vector2(produto.tabelaNutricional.width, produto.tabelaNutricional.height);
-            conteudoLeitura = tabelaLeitura.rectTransform;
-            tituloLeitura.text = produto.nome;
-        }
+        if (produto.tabelaNutricional == null) return;
 
+        // Sem dados: mostra a foto, no tamanho da imagem (o ajuste a tela vem da escala)
+        LimparTabelaDados();
+        tabelaLeitura.gameObject.SetActive(true);
+        tabelaLeitura.texture = produto.tabelaNutricional;
+        tabelaLeitura.rectTransform.sizeDelta = new Vector2(produto.tabelaNutricional.width, produto.tabelaNutricional.height);
+        MostrarLeitura(tabelaLeitura.rectTransform, produto.nome);
+    }
+
+    // Tabela desenhada a partir dos dados: de um produto da cena ou de um codigo de barras lido
+    public void AbrirLeitura(DadosProduto dados)
+    {
+        if (dados == null) return;
+        LimparTabelaDados();
+        tabelaLeitura.gameObject.SetActive(false);
+        tabelaDadosLeitura = TabelaNutricionalUI.Montar(visorLeitura, dados);
+        MostrarLeitura(tabelaDadosLeitura, dados.nome);
+    }
+
+    void MostrarLeitura(RectTransform conteudo, string titulo)
+    {
+        conteudoLeitura = conteudo;
+        tituloLeitura.text = titulo;
         painelLeitura.SetActive(true);
         AtualizarBotaoLer();
 

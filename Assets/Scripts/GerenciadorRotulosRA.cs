@@ -53,9 +53,12 @@ public class GerenciadorRotulosRA : MonoBehaviour
     // Ultimo produto que entrou na camera e ainda esta visivel (null se nenhum)
     public Produto ProdutoEmFoco => rastreados.Count > 0 ? rastreados[rastreados.Count - 1].produto : null;
 
+    // Usado tambem pela interface, para os produtos lidos pelo codigo de barras
+    public RepositorioProdutos Repositorio => repositorio ??= RepositorioProdutos.Padrao();
+
     void Start()
     {
-        repositorio = RepositorioProdutos.Padrao();
+        repositorio = Repositorio;
         if (VuforiaApplication.Instance.IsRunning)
             CriarTargets();
         else

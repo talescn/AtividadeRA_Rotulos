@@ -77,6 +77,19 @@ public static class MontarInterfaceRA
         // So aparece quando ha um produto rastreado
         ui.botaoLer.gameObject.SetActive(false);
 
+        // Faixa no topo: dica de para onde apontar e avisos da leitura do codigo de barras
+        var faixa = CriarImagem("FaixaAviso", areaRA, CorBarra, recursos.standard);
+        faixa.raycastTarget = false;
+        Ancorar(faixa.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(40f, -160f), new Vector2(-40f, -40f));
+        ui.faixaAviso = faixa.gameObject;
+        ui.textoAviso = CriarTexto("TextoAviso", faixa.transform, "", 38, CorTextoClaro, TextAlignmentOptions.Center);
+        Ancorar(ui.textoAviso.rectTransform, Vector2.zero, Vector2.one, new Vector2(24f, 0f), new Vector2(-24f, 0f));
+        ui.textoAviso.textWrappingMode = TextWrappingModes.Normal;
+        faixa.gameObject.SetActive(false);
+
+        // Le o codigo de barras na imagem da camera quando nenhum rotulo esta visivel
+        ui.leitorCodigo = canvasGO.AddComponent<LeitorCodigoBarras>();
+
         // ---------- Modo leitura: tabela em 2D, em tela cheia ----------
         var painel = CriarImagem("PainelLeitura", canvasGO.transform, CorFundoLeitura, null);
         Ancorar(painel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
