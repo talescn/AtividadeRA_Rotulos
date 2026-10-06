@@ -41,6 +41,9 @@ Quando nenhum rótulo está na câmera, a faixa do topo mostra "Aponte para o r�
 | Sprite (garrafa 200 ml) | 78939745 | `Assets/Fotos/rotulo1.jpg` | dados de `Resources/Produtos/78939745.json` |
 | Leite Ninho Integral Forti+ (1 L) | 7898215157403 | `Assets/Fotos/rotulo2.jpg` | dados de `Resources/Produtos/7898215157403.json` |
 | Creme de Cebola Maggi (68 g) | 7891000538500 | `Assets/Fotos/rotulo3.jpg` | dados de `Resources/Produtos/7891000538500.json` |
+| Fanta Uva (garrafa 200 ml) | 78938571 | nenhum: só pelo código de barras | dados de `Resources/Produtos/78938571.json` |
+
+A tabela da Fanta Uva foi transcrita da [foto do rótulo](https://world.openfoodfacts.org/product/78938571) enviada ao Open Food Facts, que tem o produto mas nenhum nutriente digitado. É o modelo antigo de rótulo (RDC 360), só com a porção de 200 ml: a coluna "100 ml" fica em branco, e "não contém quantidades significativas" de proteínas, gorduras e fibras virou 0.
 
 ## Dados dos produtos
 
@@ -195,7 +198,7 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 
 - Os dados de cada produto são **transcritos à mão** do rótulo. Se o fabricante mudar a receita ou a tabela, é preciso atualizar o JSON.
 - Pela imagem, o app só **reconhece os produtos cadastrados** (a foto do rótulo vira o marcador). Os outros só pelo código de barras, e a tabela deles abre no modo leitura, sem RA.
-- A cobertura do Open Food Facts para produtos brasileiros é **desigual**: em outubro de 2026, o Ninho tinha a tabela igual à do rótulo, o Sprite 200 ml não tinha nenhum nutriente e o Maggi 68 g tinha valores inconsistentes.
+- A cobertura do Open Food Facts para produtos brasileiros é **desigual**: em outubro de 2026, o Ninho tinha a tabela igual à do rótulo, o Sprite 200 ml e a Fanta Uva 200 ml não tinham nenhum nutriente (a Fanta só a foto da tabela) e o Maggi 68 g tinha valores inconsistentes.
 - Reconhecimento menos estável em superfícies curvas e com reflexo.
 
 ## Ideias de evolução
