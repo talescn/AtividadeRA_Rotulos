@@ -16,10 +16,11 @@ public class TestesDadosProdutos
     }
 
     [Test]
-    public void ExistemOsJsonsDoSpriteEDoNinho()
+    public void ExistemOsJsonsDosTresProdutos()
     {
         Assert.IsNotNull(RepositorioProdutos.CarregarLocal("78939745"), "Sprite 200 ml");
         Assert.IsNotNull(RepositorioProdutos.CarregarLocal("7898215157403"), "Ninho Integral 1 L");
+        Assert.IsNotNull(RepositorioProdutos.CarregarLocal("7891000538500"), "Creme de Cebola Maggi 68 g");
     }
 
     [Test]

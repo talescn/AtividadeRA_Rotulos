@@ -72,8 +72,8 @@ public class TestesCenaAtividade
             comGtin++;
             Assert.IsNotNull(RepositorioProdutos.CarregarLocal(p.gtin), $"{p.nome}: falta Resources/Produtos/{p.gtin}.json");
         }
-        // Sprite e Ninho; o Maggi espera o GTIN conferido na embalagem
-        Assert.GreaterOrEqual(comGtin, 2);
+        // Os tres produtos da atividade tem GTIN conferido na embalagem
+        Assert.AreEqual(3, comGtin);
     }
 
     [Test]

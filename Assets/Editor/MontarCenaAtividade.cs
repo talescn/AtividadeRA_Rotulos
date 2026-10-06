@@ -11,8 +11,8 @@ public static class MontarCenaAtividade
     const string CenaAtividade = "Assets/Scenes/AtividadeRA_Rotulos.unity";
 
     static readonly string[] Nomes = { "Sprite", "LeiteNinho", "CremeCebolaMaggi" };
-    // GTINs conferidos na embalagem. O do Maggi ainda falta: sem ele, o Maggi mostra a foto da tabela.
-    static readonly string[] Gtins = { "78939745", "7898215157403", "" };
+    // GTINs conferidos na embalagem (o do Maggi foi lido do proprio sache pelo leitor de codigo de barras)
+    static readonly string[] Gtins = { "78939745", "7898215157403", "7891000538500" };
     static readonly float[] Larguras = { 0.06f, 0.095f, 0.115f };
     static readonly float[] LargurasTabela = { 0.16f, 0.09f, 0.11f };
 

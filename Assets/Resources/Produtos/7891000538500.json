@@ -1,0 +1,25 @@
+{
+  "gtin": "7891000538500",
+  "nome": "Creme de Cebola Maggi 68 g",
+  "marca": "Maggi",
+  "conferidoEm": "2026-10-05",
+  "fonte": "rotulo",
+  "porcao": { "descricao": "1 ½ colheres de sopa", "quantidade": 17, "unidade": "g" },
+  "porcoesPorEmbalagem": 4,
+  "base100": "100 ml",
+  "observacaoBase100": "No alimento pronto para o consumo.",
+  "nutrientes": [
+    { "chave": "energia", "nome": "Valor energético", "unidade": "kcal", "por100": 22, "porPorcao": 58, "vd": 3, "nivel": 0 },
+    { "chave": "carboidratos", "nome": "Carboidratos", "unidade": "g", "por100": 4.5, "porPorcao": 12, "vd": 4, "nivel": 0 },
+    { "chave": "acucaresTotais", "nome": "Açúcares totais", "unidade": "g", "por100": 0.8, "porPorcao": 2.2, "vd": null, "nivel": 1 },
+    { "chave": "acucaresAdicionados", "nome": "Açúcares adicionados", "unidade": "g", "por100": 0.5, "porPorcao": 1.2, "vd": 2, "nivel": 2 },
+    { "chave": "proteinas", "nome": "Proteínas", "unidade": "g", "por100": 0.6, "porPorcao": 1.6, "vd": 3, "nivel": 0 },
+    { "chave": "gordurasTotais", "nome": "Gorduras totais", "unidade": "g", "por100": 0.1, "porPorcao": 0.3, "vd": 0, "nivel": 0 },
+    { "chave": "gordurasSaturadas", "nome": "Gorduras saturadas", "unidade": "g", "por100": 0, "porPorcao": 0, "vd": 0, "nivel": 1 },
+    { "chave": "gordurasTrans", "nome": "Gorduras trans", "unidade": "g", "por100": 0, "porPorcao": 0, "vd": 0, "nivel": 1 },
+    { "chave": "fibras", "nome": "Fibras alimentares", "unidade": "g", "por100": 0.2, "porPorcao": 0.6, "vd": 2, "nivel": 0 },
+    { "chave": "sodio", "nome": "Sódio", "unidade": "mg", "por100": 298, "porPorcao": 745, "vd": 37, "nivel": 0 }
+  ],
+  "ingredientes": null,
+  "alergenos": null
+}
