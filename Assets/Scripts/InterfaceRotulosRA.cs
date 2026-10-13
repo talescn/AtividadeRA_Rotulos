@@ -40,7 +40,19 @@ public class InterfaceRotulosRA : MonoBehaviour
     public GameObject faixaAviso;
     public TMP_Text textoAviso;
 
+    [Header("Camera")]
+    public ControleCamera controleCamera;
+    [Tooltip("Liga e apaga a lanterna; so aparece se a camera tiver lanterna.")]
+    public Button botaoLanterna;
+
+    [Header("Ensinar rotulo")]
+    public EnsinarRotuloUI ensinar;
+    [Tooltip("No modo leitura: transforma o rotulo do produto aberto num marcador de RA.")]
+    public Button botaoEnsinar;
+
     const string Dica = "Aponte para o rótulo ou para o código de barras";
+    static readonly Color CorLanternaApagada = Color.white;
+    static readonly Color CorLanternaLigada = new Color(1f, 0.85f, 0.2f);
     string aviso;
     float avisoAte;
     bool buscandoCodigo;
@@ -67,7 +79,11 @@ public class InterfaceRotulosRA : MonoBehaviour
     float escalaAjuste = 1f;
     float escalaLeitura = 1f;
 
+    // Dados da tabela aberta no modo leitura (null quando e a foto da tabela)
+    DadosProduto dadosEmLeitura;
+
     bool EmLeitura => painelLeitura.activeSelf;
+    bool Ensinando => ensinar != null && ensinar.Aberto;
 
     void Awake()
     {
@@ -76,6 +92,9 @@ public class InterfaceRotulosRA : MonoBehaviour
         controleZoom.onValueChanged.AddListener(AoMudarControleZoom);
         botaoLer.onClick.AddListener(AbrirLeituraDoProdutoEmFoco);
         botaoFechar.onClick.AddListener(FecharLeitura);
+        if (botaoLanterna != null && controleCamera != null)
+            botaoLanterna.onClick.AddListener(controleCamera.AlternarLanterna);
+        if (botaoEnsinar != null) botaoEnsinar.onClick.AddListener(EnsinarRotuloEmLeitura);
     }
 
     void OnEnable()
@@ -109,7 +128,8 @@ public class InterfaceRotulosRA : MonoBehaviour
 
         if (EmLeitura)
             GestosLeitura(toques);
-        else
+        // Enquanto ensina um rotulo, a tela e da captura e do recorte
+        else if (!Ensinando)
             GestosRA(toques);
 
         // Esquece os dedos que sairam da tela neste quadro
@@ -119,9 +139,23 @@ public class InterfaceRotulosRA : MonoBehaviour
         if (toques.Count == 0) houveMultiToque = false;
 
         // O codigo de barras so e procurado depois de criados os marcadores e quando nenhum rotulo esta na camera
-        bool procurando = gerenciador.Pronto && !EmLeitura && !buscandoCodigo && gerenciador.ProdutoEmFoco == null;
+        bool procurando = gerenciador.Pronto && !EmLeitura && !Ensinando && !buscandoCodigo && gerenciador.ProdutoEmFoco == null;
         if (leitorCodigo != null) leitorCodigo.Ativo = procurando;
         AtualizarAviso(procurando);
+        AtualizarBotaoLer();
+        AtualizarBotaoLanterna();
+        // A barra de zoom sai do caminho dos botoes da captura
+        var barraZoom = controleZoom.transform.parent.gameObject;
+        if (barraZoom.activeSelf == Ensinando) barraZoom.SetActive(!Ensinando);
+    }
+
+    // Some no modo leitura, no recorte do rotulo e quando a camera nao tem lanterna; amarelo enquanto esta ligada
+    void AtualizarBotaoLanterna()
+    {
+        if (botaoLanterna == null || controleCamera == null) return;
+        bool mostrar = !EmLeitura && !(Ensinando && ensinar.EmRecorte) && controleCamera.LanternaDisponivel;
+        if (botaoLanterna.gameObject.activeSelf != mostrar) botaoLanterna.gameObject.SetActive(mostrar);
+        botaoLanterna.image.color = controleCamera.LanternaLigada ? CorLanternaLigada : CorLanternaApagada;
     }
 
     // ---------- Codigo de barras ----------
@@ -223,10 +257,15 @@ public class InterfaceRotulosRA : MonoBehaviour
     {
         Camera cam = Camera.main;
         if (cam == null) return;
-        if (!Physics.Raycast(cam.ScreenPointToRay(posicaoTela), out RaycastHit acerto)) return;
+        var produto = Physics.Raycast(cam.ScreenPointToRay(posicaoTela), out RaycastHit acerto)
+            ? gerenciador.ProdutoDaTabela(acerto.transform) : null;
 
-        var produto = gerenciador.ProdutoDaTabela(acerto.transform);
-        if (produto != null) AbrirLeitura(produto);
+        if (produto != null)
+            AbrirLeitura(produto);
+        // Toque fora da tabela, enquanto nenhum rotulo esta na camera: foca naquele ponto (ajuda a ler o
+        // codigo de barras de perto). Com um rotulo rastreado, mexer no foco poderia atrapalhar o rastreamento.
+        else if (controleCamera != null && gerenciador.ProdutoEmFoco == null)
+            controleCamera.FocarEm(posicaoTela);
     }
 
     void AoMudarControleZoom(float valor)
@@ -249,7 +288,17 @@ public class InterfaceRotulosRA : MonoBehaviour
 
     void AtualizarBotaoLer()
     {
-        botaoLer.gameObject.SetActive(!EmLeitura && gerenciador.ProdutoEmFoco != null);
+        bool mostrar = !EmLeitura && !Ensinando && gerenciador.ProdutoEmFoco != null;
+        if (botaoLer.gameObject.activeSelf != mostrar) botaoLer.gameObject.SetActive(mostrar);
+    }
+
+    // Fecha a leitura e comeca a ensinar o rotulo do produto que estava aberto
+    void EnsinarRotuloEmLeitura()
+    {
+        var dados = dadosEmLeitura;
+        if (dados == null || ensinar == null) return;
+        FecharLeitura();
+        ensinar.Abrir(dados);
     }
 
     // ---------- Modo leitura ----------
@@ -272,6 +321,7 @@ public class InterfaceRotulosRA : MonoBehaviour
 
         // Sem dados: mostra a foto, no tamanho da imagem (o ajuste a tela vem da escala)
         LimparTabelaDados();
+        DefinirDadosEmLeitura(null);
         tabelaLeitura.gameObject.SetActive(true);
         tabelaLeitura.texture = produto.tabelaNutricional;
         tabelaLeitura.rectTransform.sizeDelta = new Vector2(produto.tabelaNutricional.width, produto.tabelaNutricional.height);
@@ -283,9 +333,18 @@ public class InterfaceRotulosRA : MonoBehaviour
     {
         if (dados == null) return;
         LimparTabelaDados();
+        DefinirDadosEmLeitura(dados);
         tabelaLeitura.gameObject.SetActive(false);
         tabelaDadosLeitura = TabelaNutricionalUI.Montar(visorLeitura, dados);
         MostrarLeitura(tabelaDadosLeitura, dados.nome);
+    }
+
+    // So da para ensinar o rotulo de um produto com dados e GTIN valido
+    void DefinirDadosEmLeitura(DadosProduto dados)
+    {
+        dadosEmLeitura = dados;
+        if (botaoEnsinar != null)
+            botaoEnsinar.gameObject.SetActive(ensinar != null && dados != null && DadosProduto.GtinValido(dados.gtin));
     }
 
     void MostrarLeitura(RectTransform conteudo, string titulo)
@@ -310,6 +369,7 @@ public class InterfaceRotulosRA : MonoBehaviour
     {
         painelLeitura.SetActive(false);
         LimparTabelaDados();
+        DefinirDadosEmLeitura(null);
         distanciaPinca = -1f;
         dedoArrastando = -1;
         AtualizarBotaoLer();

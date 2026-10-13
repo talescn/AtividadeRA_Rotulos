@@ -90,6 +90,16 @@ public static class MontarInterfaceRA
         // Le o codigo de barras na imagem da camera quando nenhum rotulo esta visivel
         ui.leitorCodigo = canvasGO.AddComponent<LeitorCodigoBarras>();
 
+        // Foco da camera e lanterna; o botao so aparece depois que o Vuforia diz que ha lanterna
+        ui.controleCamera = canvasGO.AddComponent<ControleCamera>();
+        ui.botaoLanterna = CriarBotao("BotaoLanterna", areaRA, recursosTMP, "Lanterna");
+        ui.botaoLanterna.GetComponentInChildren<TextMeshProUGUI>().fontSize = 44;
+        var rtLanterna = (RectTransform)ui.botaoLanterna.transform;
+        rtLanterna.anchorMin = rtLanterna.anchorMax = rtLanterna.pivot = new Vector2(1f, 1f);
+        rtLanterna.sizeDelta = new Vector2(300f, 110f);
+        rtLanterna.anchoredPosition = new Vector2(-40f, -190f);
+        ui.botaoLanterna.gameObject.SetActive(false);
+
         // ---------- Modo leitura: tabela em 2D, em tela cheia ----------
         var painel = CriarImagem("PainelLeitura", canvasGO.transform, CorFundoLeitura, null);
         Ancorar(painel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -100,7 +110,7 @@ public static class MontarInterfaceRA
         // O visor vem primeiro para que titulo e botoes fiquem por cima da tabela ampliada
         var visor = new GameObject("VisorLeitura", typeof(RectTransform)).GetComponent<RectTransform>();
         visor.SetParent(areaLeitura, false);
-        Ancorar(visor, Vector2.zero, Vector2.one, new Vector2(0f, 140f), new Vector2(0f, -170f));
+        Ancorar(visor, Vector2.zero, Vector2.one, new Vector2(0f, 290f), new Vector2(0f, -170f));
         ui.visorLeitura = visor;
 
         // Foto da tabela: so aparece quando o produto nao tem dados
@@ -125,12 +135,22 @@ public static class MontarInterfaceRA
             34, new Color(0.75f, 0.75f, 0.75f), TextAlignmentOptions.Center);
         Ancorar(dica.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 30f), new Vector2(-40f, 120f));
 
+        // Transforma o rotulo do produto aberto num marcador; so aparece para produto com dados e GTIN
+        ui.botaoEnsinar = CriarBotao("BotaoEnsinar", areaLeitura, recursosTMP, "Ensinar rótulo");
+        Ancorar((RectTransform)ui.botaoEnsinar.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(-300f, 150f), new Vector2(300f, 270f));
+        ui.botaoEnsinar.gameObject.SetActive(false);
+
         painel.gameObject.SetActive(false);
+
+        // ---------- Ensinar rotulo: telas de captura e de recorte ----------
+        MontarEnsinoRA.Montar(ui, canvasGO, sprite, recursosTMP);
+
         EditorUtility.SetDirty(ui);
         return ui;
     }
 
-    static RectTransform CriarAreaSegura(string nome, Transform pai)
+    internal static RectTransform CriarAreaSegura(string nome, Transform pai)
     {
         var area = new GameObject(nome, typeof(RectTransform), typeof(AjustarAreaSegura)).GetComponent<RectTransform>();
         area.SetParent(pai, false);
@@ -138,7 +158,7 @@ public static class MontarInterfaceRA
         return area;
     }
 
-    static Image CriarImagem(string nome, Transform pai, Color cor, Sprite sprite)
+    internal static Image CriarImagem(string nome, Transform pai, Color cor, Sprite sprite)
     {
         var imagem = new GameObject(nome, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
         imagem.transform.SetParent(pai, false);
@@ -148,7 +168,7 @@ public static class MontarInterfaceRA
         return imagem;
     }
 
-    static TextMeshProUGUI CriarTexto(string nome, Transform pai, string conteudo, float tamanho, Color cor, TextAlignmentOptions alinhamento)
+    internal static TextMeshProUGUI CriarTexto(string nome, Transform pai, string conteudo, float tamanho, Color cor, TextAlignmentOptions alinhamento)
     {
         var texto = new GameObject(nome, typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
         texto.transform.SetParent(pai, false);
@@ -161,7 +181,7 @@ public static class MontarInterfaceRA
         return texto;
     }
 
-    static Button CriarBotao(string nome, Transform pai, TMP_DefaultControls.Resources recursos, string rotulo)
+    internal static Button CriarBotao(string nome, Transform pai, TMP_DefaultControls.Resources recursos, string rotulo)
     {
         var go = TMP_DefaultControls.CreateButton(recursos);
         go.name = nome;
@@ -175,7 +195,7 @@ public static class MontarInterfaceRA
         return go.GetComponent<Button>();
     }
 
-    static void Ancorar(RectTransform rt, Vector2 ancoraMin, Vector2 ancoraMax, Vector2 offsetMin, Vector2 offsetMax)
+    internal static void Ancorar(RectTransform rt, Vector2 ancoraMin, Vector2 ancoraMax, Vector2 offsetMin, Vector2 offsetMax)
     {
         rt.anchorMin = ancoraMin;
         rt.anchorMax = ancoraMax;

@@ -1,10 +1,12 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using Vuforia;
 
 // Atividade 01 - Realidade Aumentada Marker Based
-// Cria em tempo de execucao 3 Image Targets (um para cada rotulo de produto)
-// e, quando o rotulo e reconhecido, mostra a tabela nutricional do produto na frente dele.
+// Cria em tempo de execucao um Image Target para cada rotulo (os 3 produtos da cena e os rotulos ensinados
+// no app, guardados no CatalogoMarcadores) e, quando o rotulo e reconhecido, mostra a tabela nutricional na frente dele.
 // A tabela e desenhada a partir dos dados do produto (por GTIN); a foto da tabela so e usada se nao houver dados.
 public class GerenciadorRotulosRA : MonoBehaviour
 {
@@ -28,6 +30,8 @@ public class GerenciadorRotulosRA : MonoBehaviour
     class ProdutoEmCena
     {
         public Produto produto;
+        // Nome do marcador no Vuforia ("Rotulo_..." dos produtos da cena, "Ensinado_..." dos ensinados no app)
+        public string nomeMarcador;
         public Transform target;
         public Transform tabela;
         public Vector3 escalaBase;
@@ -40,6 +44,12 @@ public class GerenciadorRotulosRA : MonoBehaviour
     [Tooltip("Distancia (m) da tabela a frente da superficie do rotulo.")]
     public float distanciaFrente = 0.01f;
 
+    [Header("Rotulos ensinados no app")]
+    [Tooltip("Largura usada para o rotulo ensinado, em metros. Nao precisa ser a real: a tabela e medida em proporcao a ela.")]
+    public float larguraRotuloEnsinado = 0.08f;
+    [Tooltip("Largura da tabela de um rotulo ensinado, em vezes a largura do rotulo.")]
+    public float fatorTabelaEnsinada = 1f;
+
     // Avisado sempre que um produto entra ou sai da camera
     public event System.Action AoMudarRastreamento;
 
@@ -49,12 +59,16 @@ public class GerenciadorRotulosRA : MonoBehaviour
     // Produtos visiveis agora, do mais antigo para o mais recente
     readonly List<ProdutoEmCena> rastreados = new List<ProdutoEmCena>();
     RepositorioProdutos repositorio;
+    CatalogoMarcadores catalogo;
 
     // Ultimo produto que entrou na camera e ainda esta visivel (null se nenhum)
     public Produto ProdutoEmFoco => rastreados.Count > 0 ? rastreados[rastreados.Count - 1].produto : null;
 
     // Usado tambem pela interface, para os produtos lidos pelo codigo de barras
     public RepositorioProdutos Repositorio => repositorio ??= RepositorioProdutos.Padrao();
+
+    // Rotulos ensinados no app, guardados no aparelho
+    public CatalogoMarcadores Catalogo => catalogo ??= CatalogoMarcadores.Padrao();
 
     // Todos os marcadores ja foram criados. O leitor de codigo de barras so mexe na camera depois disso:
     // pedir a imagem da camera enquanto o Vuforia cria os marcadores derrubou o app uma vez no celular.
@@ -91,36 +105,141 @@ public class GerenciadorRotulosRA : MonoBehaviour
                 continue;
             }
 
-            Texture2D imagemMarcador = CopiarRGBA32(p.rotulo);
-            ImageTargetBehaviour target = VuforiaBehaviour.Instance.ObserverFactory
-                .CreateImageTarget(imagemMarcador, p.larguraRotuloMetros, "Rotulo_" + p.nome);
-
-            if (target == null)
-            {
-                Debug.LogError($"[RA] Nao foi possivel criar o Image Target de '{p.nome}'.");
-                continue;
-            }
-
-            target.gameObject.name = "ImageTarget_" + p.nome;
-            // Mostra/esconde os filhos automaticamente quando o rotulo e encontrado/perdido
-            var handler = target.gameObject.AddComponent<DefaultObserverEventHandler>();
-            // So mostra a tabela enquanto o rotulo esta realmente visivel (evita tabela "fantasma")
-            handler.StatusFilter = DefaultObserverEventHandler.TrackingStatusFilter.Tracked;
-
-            var item = new ProdutoEmCena { produto = p, target = target.transform };
-            emCena.Add(item);
-            DefinirTabela(item, dados);
-
-            // Os mesmos eventos que ligam e desligam a tabela dizem a interface o que esta visivel
-            handler.OnTargetFound.AddListener(() => MarcarRastreado(item, true));
-            handler.OnTargetLost.AddListener(() => MarcarRastreado(item, false));
-            Debug.Log($"[RA] Marcador criado: {p.nome} ({(dados != null ? "tabela dos dados" : "foto da tabela")})");
-
+            var item = CriarMarcador(p, dados, "Rotulo_" + p.nome);
             // Sem dado local: tenta o Open Food Facts; se nao vier nada, fica a foto
-            if (dados == null && !string.IsNullOrEmpty(p.gtin))
+            if (item != null && dados == null && !string.IsNullOrEmpty(p.gtin))
                 StartCoroutine(repositorio.BuscarOpenFoodFacts(p.gtin, (recebidos, motivo) => AoReceberDados(item, recebidos)));
         }
+
+        // Rotulos ensinados no app em outras vezes. Um marcador estragado nao pode impedir o resto:
+        // sem Pronto, o leitor de codigo de barras nunca liga.
+        foreach (var marcador in Catalogo.Marcadores)
+        {
+            try
+            {
+                CarregarMarcadorEnsinado(marcador);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[RA] Marcador ensinado {marcador.arquivo} ficou de fora: {e.Message}");
+            }
+        }
         Pronto = true;
+    }
+
+    ProdutoEmCena CriarMarcador(Produto p, DadosProduto dados, string nomeMarcador)
+    {
+        // As fotos da cena chegam em RGB e sao copiadas; um rotulo ensinado ja vem em RGBA32 legivel
+        Texture2D imagemMarcador = p.rotulo.format == TextureFormat.RGBA32 && p.rotulo.isReadable
+            ? p.rotulo : CopiarRGBA32(p.rotulo);
+        ImageTargetBehaviour target = VuforiaBehaviour.Instance.ObserverFactory
+            .CreateImageTarget(imagemMarcador, p.larguraRotuloMetros, nomeMarcador);
+
+        if (target == null)
+        {
+            Debug.LogError($"[RA] Nao foi possivel criar o Image Target de '{p.nome}' ({nomeMarcador}).");
+            return null;
+        }
+
+        target.gameObject.name = "ImageTarget_" + nomeMarcador;
+        // Mostra/esconde os filhos automaticamente quando o rotulo e encontrado/perdido
+        var handler = target.gameObject.AddComponent<DefaultObserverEventHandler>();
+        // So mostra a tabela enquanto o rotulo esta realmente visivel (evita tabela "fantasma")
+        handler.StatusFilter = DefaultObserverEventHandler.TrackingStatusFilter.Tracked;
+
+        var item = new ProdutoEmCena { produto = p, nomeMarcador = nomeMarcador, target = target.transform };
+        emCena.Add(item);
+        DefinirTabela(item, dados);
+
+        // Os mesmos eventos que ligam e desligam a tabela dizem a interface o que esta visivel
+        handler.OnTargetFound.AddListener(() => MarcarRastreado(item, true));
+        handler.OnTargetLost.AddListener(() => MarcarRastreado(item, false));
+        Debug.Log($"[RA] Marcador criado: {nomeMarcador} ({(dados != null ? "tabela dos dados" : "foto da tabela")})");
+        return item;
+    }
+
+    // ---------- Rotulos ensinados no app ----------
+
+    public int VistasEnsinadas(string gtin)
+    {
+        return Catalogo.ContarVistas(gtin);
+    }
+
+    // Cria na hora o marcador de um rotulo capturado pela camera e o guarda no aparelho. Fica com a textura.
+    // As vistas mais antigas do mesmo produto, alem do limite do catalogo, saem da cena.
+    public bool EnsinarMarcador(DadosProduto dados, Texture2D imagem, int estrelas)
+    {
+        if (!VuforiaApplication.Instance.IsRunning || dados == null || !dados.TemTabela) return false;
+        DateTime agora = DateTime.Now;
+        string arquivo = CatalogoMarcadores.NomeArquivo(dados.gtin, agora);
+        if (CriarMarcadorEnsinado(arquivo, larguraRotuloEnsinado, dados, imagem) == null) return false;
+
+        var removidos = new List<CatalogoMarcadores.Marcador>();
+        try
+        {
+            Catalogo.Adicionar(dados.gtin, imagem.EncodeToPNG(), larguraRotuloEnsinado, estrelas, agora, removidos);
+        }
+        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+        {
+            // O marcador funciona agora; so nao volta na proxima vez que o app abrir
+            Debug.LogWarning($"[RA] Marcador de {dados.gtin} criado, mas nao foi salvo no aparelho: {e.Message}");
+        }
+        finally
+        {
+            // A imagem das vistas antigas ja saiu da pasta, mesmo que o indice nao tenha sido salvo
+            foreach (var antiga in removidos) RemoverMarcador(NomeEnsinado(antiga.arquivo));
+        }
+        return true;
+    }
+
+    void CarregarMarcadorEnsinado(CatalogoMarcadores.Marcador marcador)
+    {
+        byte[] png = Catalogo.LerImagem(marcador);
+        DadosProduto dados = repositorio.BuscarSemRede(marcador.gtin);
+        if (png == null || dados == null || !dados.TemTabela)
+        {
+            Debug.LogWarning($"[RA] Marcador ensinado {marcador.arquivo} ficou de fora: " +
+                             (png == null ? "imagem nao encontrada." : "o produto nao tem tabela no aparelho."));
+            return;
+        }
+        var imagem = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        if (!imagem.LoadImage(png))
+        {
+            Debug.LogWarning($"[RA] Imagem do marcador ensinado {marcador.arquivo} ilegivel.");
+            Destroy(imagem);
+            return;
+        }
+        if (CriarMarcadorEnsinado(marcador.arquivo, marcador.larguraMetros, dados, imagem) == null) Destroy(imagem);
+    }
+
+    // A tabela tem a largura do rotulo vezes fatorTabelaEnsinada, para ficar na mesma proporcao em qualquer rotulo
+    ProdutoEmCena CriarMarcadorEnsinado(string arquivo, float largura, DadosProduto dados, Texture2D imagem)
+    {
+        var p = new Produto
+        {
+            nome = dados.nome,
+            gtin = dados.gtin,
+            rotulo = imagem,
+            larguraRotuloMetros = largura,
+            larguraTabelaMetros = largura * fatorTabelaEnsinada
+        };
+        return CriarMarcador(p, dados, NomeEnsinado(arquivo));
+    }
+
+    static string NomeEnsinado(string arquivo)
+    {
+        return "Ensinado_" + Path.GetFileNameWithoutExtension(arquivo);
+    }
+
+    void RemoverMarcador(string nomeMarcador)
+    {
+        var item = emCena.Find(i => i.nomeMarcador == nomeMarcador);
+        if (item == null) return;
+        emCena.Remove(item);
+        if (rastreados.Remove(item)) AoMudarRastreamento?.Invoke();
+        Destroy(item.target.gameObject);
+        Destroy(item.produto.rotulo);
+        Debug.Log("[RA] Marcador removido (vista mais antiga do produto): " + nomeMarcador);
     }
 
     void AoReceberDados(ProdutoEmCena item, DadosProduto dados)
@@ -217,6 +336,10 @@ public class GerenciadorRotulosRA : MonoBehaviour
 
     void MarcarRastreado(ProdutoEmCena item, bool rastreado)
     {
+        // Evento atrasado de um marcador que acabou de ser removido
+        if (!emCena.Contains(item)) return;
+        // No log, para medir se o rotulo fica estavel ou entra e sai da camera
+        Debug.Log($"[RA] Rotulo {(rastreado ? "na camera" : "saiu da camera")}: {item.nomeMarcador}");
         item.rastreado = rastreado;
         rastreados.Remove(item);
         if (rastreado) rastreados.Add(item);

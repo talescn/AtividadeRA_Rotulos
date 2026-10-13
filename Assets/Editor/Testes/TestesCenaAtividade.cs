@@ -131,4 +131,31 @@ public class TestesCenaAtividade
         Assert.IsTrue(ui.textoAviso.transform.IsChildOf(ui.faixaAviso.transform));
         Assert.IsFalse(ui.faixaAviso.activeSelf, "a faixa so aparece quando ha dica ou aviso");
     }
+
+    [Test]
+    public void LanternaEFocoEstaoLigadosAInterface()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        Assert.IsNotNull(ui.controleCamera, "falta o ControleCamera");
+        Assert.IsNotNull(ui.botaoLanterna, "falta o botao da lanterna");
+        Assert.IsFalse(ui.botaoLanterna.gameObject.activeSelf, "a lanterna so aparece se a camera tiver uma");
+    }
+
+    [Test]
+    public void EnsinarRotuloEstaLigadoAInterface()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        var ensinar = ui.ensinar;
+        Assert.IsNotNull(ensinar, "falta o EnsinarRotuloUI");
+        Assert.AreSame(ui.gerenciador, ensinar.gerenciador);
+        Assert.IsNotNull(ensinar.captura, "falta o CapturaRotulo");
+        Assert.IsNotNull(ui.botaoEnsinar);
+        Assert.IsTrue(ui.botaoEnsinar.transform.IsChildOf(ui.painelLeitura.transform), "o botao Ensinar fica no modo leitura");
+        Assert.IsFalse(ui.botaoEnsinar.gameObject.activeSelf, "so aparece para produto com dados e GTIN");
+        Assert.IsFalse(ensinar.painelCaptura.activeSelf);
+        Assert.IsFalse(ensinar.painelRecorte.activeSelf);
+        Assert.IsTrue(ensinar.molduraRecorte.IsChildOf(ensinar.fotoRecorte.transform), "a moldura e medida sobre a foto");
+        Assert.AreEqual(5, ensinar.molduraRecorte.GetComponentsInChildren<AlcaRecorte>(true).Length, "4 cantos e o meio");
+        Assert.AreSame(ui.controleCamera, ensinar.painelCaptura.GetComponent<ToqueParaFocar>().controleCamera);
+    }
 }
