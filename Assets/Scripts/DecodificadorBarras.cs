@@ -14,10 +14,11 @@ public static class DecodificadorBarras
     // O leitor do ZXing nao pode ser usado por duas threads ao mesmo tempo: um por thread
     [System.ThreadStatic] static BarcodeReaderGeneric leitor;
 
+    // Sem AutoRotate: ele tentaria 4 rotacoes em cada quadro sem codigo, e para codigo de barras so
+    // importam duas (deitado e em pe). Com TryHarder, o leitor 1D ja tenta a outra orientacao sozinho.
     static BarcodeReaderGeneric Leitor => leitor ??= new BarcodeReaderGeneric
     {
-        // A imagem da camera vem deitada em relacao a tela do celular em retrato; o ZXing tenta tambem girada
-        AutoRotate = true,
+        AutoRotate = false,
         Options = new DecodingOptions { PossibleFormats = Formatos, TryHarder = true }
     };
 
@@ -28,7 +29,11 @@ public static class DecodificadorBarras
 
         byte[] compactos = Compactar(pixels, largura, altura, stride, bytesPorPixel);
         var formato = bytesPorPixel == 1 ? RGBLuminanceSource.BitmapFormat.Gray8 : RGBLuminanceSource.BitmapFormat.RGB24;
-        var resultado = Leitor.Decode(new RGBLuminanceSource(compactos, largura, altura, formato));
+        var fonte = new RGBLuminanceSource(compactos, largura, altura, formato);
+        // Com o celular em retrato, o codigo na horizontal da tela chega deitado na imagem da camera:
+        // a orientacao girada vem primeiro. Se falhar, o proprio leitor gira mais 90 graus (180 da girada,
+        // o que para codigo de barras vale o mesmo que a imagem original, porque as linhas sao lidas nos dois sentidos)
+        var resultado = Leitor.Decode(fonte.rotateCounterClockwise());
         if (resultado == null) return null;
         return DadosProduto.GtinValido(resultado.Text) ? resultado.Text : null;
     }
