@@ -10,8 +10,9 @@ Aplicação de **Realidade Aumentada baseada em marcadores** feita com **Unity +
 4. Quando o rótulo é reconhecido pela câmera, a tabela aparece. Quando o produto sai de vista, ela some.
 5. A interface ([`InterfaceRotulosRA`](Assets/Scripts/InterfaceRotulosRA.cs)) deixa ampliar a tabela em RA e abrir o **modo leitura**, com a tabela em tela cheia.
 6. Sem nenhum rótulo na câmera, o app procura um **código de barras**. Com o GTIN lido, ele busca os dados e abre a tabela no modo leitura, inclusive de produtos que não têm rótulo cadastrado.
+7. Com a tabela aberta, o botão **Ensinar rótulo** transforma o rótulo daquele produto num marcador novo, criado no próprio celular. Daí em diante a tabela aparece em RA sobre ele, como nos produtos da cena.
 
-Não há nenhum marcador fixo no projeto: trocar de produto é trocar a foto do rótulo e o JSON com os dados.
+Não há nenhum marcador fixo no projeto: trocar de produto é trocar a foto do rótulo e o JSON com os dados, ou ensinar o rótulo no app.
 
 ## Zoom e modo leitura
 
@@ -27,12 +28,29 @@ O botão **Ler** só aparece quando há um produto na câmera e abre o último q
 
 ## Código de barras
 
-Quando nenhum rótulo está na câmera, a faixa do topo mostra "Aponte para o rótulo ou para o código de barras" e o [`LeitorCodigoBarras`](Assets/Scripts/LeitorCodigoBarras.cs) procura códigos **EAN-13, EAN-8 e UPC-A** na imagem da câmera do Vuforia, algumas vezes por segundo e fora da thread principal.
+Quando nenhum rótulo está na câmera, a faixa do topo mostra "Aponte para o rótulo ou para o código de barras" e o [`LeitorCodigoBarras`](Assets/Scripts/LeitorCodigoBarras.cs) procura códigos **EAN-13, EAN-8 e UPC-A** na imagem da câmera do Vuforia, várias vezes por segundo e fora da thread principal.
 
 - A leitura usa o [ZXing.Net](https://github.com/micjahn/ZXing.Net/) 0.16.11 (Apache-2.0), em `Assets/Plugins/ZXing`. O leitor do próprio Vuforia exige o plano Premium para publicar.
+- Com o celular em retrato, o código na horizontal da tela chega deitado na imagem da câmera: o decodificador tenta essa orientação primeiro e não perde tempo com as quatro rotações do `AutoRotate` (cerca de 2× mais rápido nos quadros sem código).
 - Um código só vale depois de duas leituras iguais e com o dígito verificador correto. O mesmo código é ignorado por 8 s depois de aceito.
+- O botão **Lanterna** (canto de cima) acende a luz do celular, e tocar na tela fora da tabela pede um foco naquele ponto. O [`ControleCamera`](Assets/Scripts/ControleCamera.cs) liga o foco contínuo sempre que o Vuforia começa ou volta de uma pausa.
+- A cada 5 s o log mostra quantos quadros o leitor processou e quanto tempo levaram (`[RA] Leitor: ...`). Para guardar alguns quadros da câmera e examinar no computador, crie o arquivo `salvar_quadros` na pasta do app (`adb shell touch /sdcard/Android/data/com.talescn.rotulosra/files/salvar_quadros`): até 40 quadros vão para `Quadros/*.pgm`.
 - Com o GTIN, os dados vêm do JSON local, do cache ou do Open Food Facts, nessa ordem. Se não houver tabela, a faixa diz o motivo: fora da base, na base sem tabela, sem conexão ou valores impossíveis.
 - Tabelas fisicamente impossíveis vindas do Open Food Facts são recusadas: mais de 100 g de um nutriente em 100 g, macronutriente maior que a porção ou energia mais de 30% longe de 4 × C + 4 × P + 9 × G.
+
+## Ensinar um rótulo
+
+Para um produto lido pelo código de barras passar a ser reconhecido pela imagem, com a tabela em RA sobre o rótulo:
+
+1. Com a tabela aberta no modo leitura, toque em **Ensinar rótulo**.
+2. Aponte para o rótulo, de frente, bem perto e sem reflexo, e toque em **Capturar**. Por 0,8 s o [`CapturaRotulo`](Assets/Scripts/CapturaRotulo.cs) compara os quadros da câmera e fica com o mais nítido (variância do laplaciano), já girado para a orientação da tela.
+3. A foto aparece congelada com um retângulo amarelo. Arraste os cantos (ou o meio) para deixar **só o rótulo** dentro dele: numa garrafa transparente, o que aparece através dela muda de lugar para lugar e estraga o marcador.
+4. A nota do marcador, de 0 a 5, muda enquanto o retângulo é ajustado. Com 2 ou mais, **Criar marcador** cria o Image Target na hora, e a tabela já aparece sobre o rótulo.
+5. Em garrafas, capture também os lados do rótulo: cada produto guarda até **4 vistas**, e a mais antiga sai quando passa disso. Várias vistas planas fazem o papel do Cylinder Target, que o Vuforia só cria pelo portal.
+
+A nota ([`QualidadeMarcador`](Assets/Scripts/QualidadeMarcador.cs)) existe porque o Vuforia não dá a nota de estrelas do Target Manager em tempo de execução. Ela conta os cantos FAST-9 (o tipo de detalhe que o rastreamento procura) na imagem reduzida a 320 px e vê se eles cobrem uma grade de 6 × 6. Depois tira uma estrela por reflexo (mais de 3% de pixels estourados), por pouca luz e por recorte menor que 200 px, e mostra o motivo. Os limites foram calibrados com as fotos dos rótulos do projeto e com a faixa da Fanta vista pela câmera. A nota não sabe o que é transparente: recortar só o rótulo continua sendo trabalho de quem ensina.
+
+Os marcadores ensinados ficam no aparelho ([`CatalogoMarcadores`](Assets/Scripts/CatalogoMarcadores.cs)): um PNG por vista e o índice `marcadores.json` em `persistentDataPath/Marcadores`, com `gtin`, `arquivo`, `larguraMetros`, `estrelas` e `criadoEm`. Quando o app abre, eles voltam junto com os produtos da cena. O tamanho real do rótulo não é medido: o marcador usa 8 cm e a tabela tem a mesma largura dele, então ela fica na proporção certa em qualquer rótulo (o zoom continua valendo).
 
 ## Produtos de teste
 
@@ -41,7 +59,7 @@ Quando nenhum rótulo está na câmera, a faixa do topo mostra "Aponte para o r�
 | Sprite (garrafa 200 ml) | 78939745 | `Assets/Fotos/rotulo1.jpg` | dados de `Resources/Produtos/78939745.json` |
 | Leite Ninho Integral Forti+ (1 L) | 7898215157403 | `Assets/Fotos/rotulo2.jpg` | dados de `Resources/Produtos/7898215157403.json` |
 | Creme de Cebola Maggi (68 g) | 7891000538500 | `Assets/Fotos/rotulo3.jpg` | dados de `Resources/Produtos/7891000538500.json` |
-| Fanta Uva (garrafa 200 ml) | 78938571 | nenhum: só pelo código de barras | dados de `Resources/Produtos/78938571.json` |
+| Fanta Uva (garrafa 200 ml) | 78938571 | ensinado no app (**Ensinar rótulo**) | dados de `Resources/Produtos/78938571.json` |
 
 A tabela da Fanta Uva foi transcrita da [foto do rótulo](https://world.openfoodfacts.org/product/78938571) enviada ao Open Food Facts, que tem o produto mas nenhum nutriente digitado. É o modelo antigo de rótulo (RDC 360), só com a porção de 200 ml: a coluna "100 ml" fica em branco, e "não contém quantidades significativas" de proteínas, gorduras e fibras virou 0.
 
@@ -138,11 +156,21 @@ Assets/
 │   ├── LeitorCodigoBarras.cs    lê o código de barras na imagem da câmera do Vuforia
 │   ├── DecodificadorBarras.cs   decodifica EAN-13, EAN-8 e UPC-A com o ZXing
 │   ├── LeituraEstavel.cs        confirma o código em duas leituras iguais
+│   ├── ControleCamera.cs        foco contínuo, foco pelo toque e lanterna
+│   ├── EnsinarRotuloUI.cs       fluxo do "Ensinar rótulo": captura, recorte, nota e criação do marcador
+│   ├── CapturaRotulo.cs         escolhe o quadro mais nítido da câmera
+│   ├── QualidadeMarcador.cs     nota de 0 a 5 de uma imagem candidata a marcador
+│   ├── CatalogoMarcadores.cs    guarda os rótulos ensinados no aparelho
+│   ├── ImagemCinza.cs           girar, recortar, reduzir e medir nitidez de imagens em cinza
+│   ├── CalculosRecorte.cs       contas do retângulo de recorte
+│   ├── AlcaRecorte.cs           alças que arrastam o retângulo
+│   ├── ToqueParaFocar.cs        toque na tela de captura pede foco
 │   ├── CalculosGestos.cs        contas do zoom, da pinça e do arrasto
 │   └── AjustarAreaSegura.cs     mantém os controles fora do entalhe e das barras do sistema
 ├── Editor/
 │   ├── MontarCenaAtividade.cs   menu que monta a cena automaticamente
-│   ├── MontarInterfaceRA.cs     cria a interface (barra de zoom, botão Ler, modo leitura)
+│   ├── MontarInterfaceRA.cs     cria a interface (barra de zoom, botão Ler, lanterna, modo leitura)
+│   ├── MontarEnsinoRA.cs        cria as telas de captura e de recorte do "Ensinar rótulo"
 │   ├── GerarBuildAndroid.cs     menu que configura o Android e gera o APK
 │   ├── GerarPreviaTabelas.cs    menu que salva um PNG de cada tabela em Builds/Previas
 │   └── Testes/                  testes de EditMode
@@ -153,7 +181,7 @@ Assets/
 
 ## Testes
 
-Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada e o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas). Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
 
 ```bash
 Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
@@ -193,17 +221,20 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 - **JSON local antes do cache e do Open Food Facts**: a transcrição do rótulo é a referência; a base aberta só completa o que falta.
 - **Newtonsoft Json** para ler campos nulos (o `JsonUtility` não aceita número nulo) e a resposta do Open Food Facts.
 - **Leitor de código de barras só depois de criados os marcadores**: o registro do formato da câmera espera o `GerenciadorRotulosRA` ficar pronto, e a imagem é pedida no `World.OnStateUpdated`, como na documentação do Vuforia. Pedir a imagem enquanto os marcadores eram criados derrubou o app uma vez no celular.
+- **Câmera com o ARCore**: no realme 15T o Vuforia usa o ARCore 1.45 e entrega 1920 × 1080 a 30 fps. O foco contínuo é aceito, mas o foco numa região da imagem não existe com o ARCore (a documentação do Vuforia confirma). O toque para focar pede um foco único e volta ao contínuo depois de 2 s.
+- **Marcador ensinado a partir da câmera**, e não de uma foto tirada fora: é a mesma câmera, a mesma luz e a mesma distância em que ele vai ser procurado. O quadro é girado 90° no sentido horário, a orientação do sensor no realme, para a tabela não aparecer tombada.
 
 ## Limitações conhecidas
 
 - Os dados de cada produto são **transcritos à mão** do rótulo. Se o fabricante mudar a receita ou a tabela, é preciso atualizar o JSON.
-- Pela imagem, o app só **reconhece os produtos cadastrados** (a foto do rótulo vira o marcador). Os outros só pelo código de barras, e a tabela deles abre no modo leitura, sem RA.
+- Pela imagem, o app reconhece os produtos da cena e os **rótulos ensinados no aparelho**. Os marcadores ensinados ficam só naquele celular.
+- O giro do quadro ensinado supõe o sensor da câmera virado 90°, como no realme 15T. Num aparelho com o sensor virado 270°, a tabela apareceria de cabeça para baixo.
 - A cobertura do Open Food Facts para produtos brasileiros é **desigual**: em outubro de 2026, o Ninho tinha a tabela igual à do rótulo, o Sprite 200 ml e a Fanta Uva 200 ml não tinham nenhum nutriente (a Fanta só a foto da tabela) e o Maggi 68 g tinha valores inconsistentes.
 - Reconhecimento menos estável em superfícies curvas e com reflexo.
 
 ## Ideias de evolução
 
-- **Ensinar um produto novo**: depois de lido o código de barras, tirar a foto do rótulo no próprio app e criar o marcador, para o produto passar a ser reconhecido pela imagem.
+- Apagar os marcadores ensinados de um produto pelo próprio app.
 - Ler o texto do rótulo com **OCR** e extrair a tabela nutricional e os ingredientes automaticamente.
 - Destacar **alérgenos e substâncias** que cada pessoa quer evitar, e ler a tabela em voz alta.
 - Escalar para um **catálogo maior** de produtos, por exemplo com o Cloud Recognition do Vuforia.
