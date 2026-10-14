@@ -102,7 +102,7 @@ public class TestesDiario
         // Cada linha tem uns 70 bytes: so a primeira cabe em 100
         var diario = new DiarioTestes(pasta, 100);
         for (int i = 0; i < 5; i++)
-            diario.Registrar("[RA] Leitor: 150 quadros, 95 ms em media", "", LogType.Log, Instante);
+            diario.Registrar("[RA] Leitor: 15" + i + " quadros, 95 ms em media", "", LogType.Log, Instante);
 
         string[] linhas = LinhasDoDia();
         Assert.AreEqual(2, linhas.Length);
@@ -112,7 +112,37 @@ public class TestesDiario
     }
 
     [Test]
-    public void ErroDeDiscoDesligaODiarioSemExcecao()
+    public void LinhaRepetidaEmSeguidaViraUmaSoComAContagem()
+    {
+        // Um erro a cada quadro nao pode encher o arquivo do dia
+        var diario = new DiarioTestes(pasta);
+        for (int i = 0; i < 4; i++)
+            diario.Registrar("Erro a cada quadro", "", LogType.Error, Instante);
+        diario.Registrar("[RA] Leitura fechada", "", LogType.Log, Instante);
+
+        string[] linhas = LinhasDoDia();
+        Assert.AreEqual(3, linhas.Length);
+        StringAssert.EndsWith("Erro a cada quadro", linhas[0]);
+        StringAssert.EndsWith("[RA] A linha anterior se repetiu mais 3 vezes", linhas[1]);
+        StringAssert.EndsWith("[RA] Leitura fechada", linhas[2]);
+    }
+
+    [Test]
+    public void PastaApagadaComOAppAbertoVoltaASerCriada()
+    {
+        var diario = new DiarioTestes(pasta);
+        diario.Registrar("[RA] Antes", "", LogType.Log, Instante);
+        Directory.Delete(pasta, true);
+        diario.Registrar("[RA] Depois", "", LogType.Log, Instante);
+
+        Assert.IsFalse(diario.Desligado);
+        string[] linhas = LinhasDoDia();
+        Assert.AreEqual(1, linhas.Length);
+        StringAssert.EndsWith("[RA] Depois", linhas[0]);
+    }
+
+    [Test]
+    public void ErroDeDiscoRepetidoDesligaODiarioSemExcecao()
     {
         // Uma pasta "dentro" de um arquivo nao pode ser criada
         Directory.CreateDirectory(pasta);
@@ -120,7 +150,10 @@ public class TestesDiario
         File.WriteAllText(arquivo, "x");
         var diario = new DiarioTestes(Path.Combine(arquivo, "Diario"));
 
-        Assert.DoesNotThrow(() => diario.Registrar("[RA] Leitura fechada", "", LogType.Log, Instante));
+        Assert.DoesNotThrow(() => diario.Registrar("[RA] Um", "", LogType.Log, Instante));
+        Assert.IsFalse(diario.Desligado, "uma falha so pode ser passageira");
+        diario.Registrar("[RA] Dois", "", LogType.Log, Instante);
+        diario.Registrar("[RA] Tres", "", LogType.Log, Instante);
         Assert.IsTrue(diario.Desligado);
         Assert.IsNotEmpty(diario.MotivoDesligado);
     }

@@ -17,14 +17,21 @@ public class DiarioTestes
 
     static DiarioTestes ativo;
 
+    // Falhas de disco seguidas antes de desligar (uma so pode ser passageira)
+    const int FalhasParaDesligar = 3;
+
     readonly string pasta;
     readonly long limiteBytes;
     readonly object trava = new object();
-    bool pastaCriada;
     // Arquivo que ja recebeu o aviso de cheio
     string arquivoCheio;
+    int falhasSeguidas;
+    // Ultima mensagem gravada e quantas vezes ela veio de novo logo em seguida, sem ser gravada
+    string ultimaMensagem;
+    LogType ultimoTipo;
+    int repeticoes;
 
-    // Desliga de vez no primeiro erro de disco: o diario nunca pode atrapalhar o app
+    // Desliga de vez depois de algumas falhas de disco seguidas: o diario nunca pode atrapalhar o app
     public bool Desligado { get; private set; }
     public string MotivoDesligado { get; private set; }
 
@@ -59,32 +66,48 @@ public class DiarioTestes
         lock (trava)
         {
             if (Desligado) return;
+            // Um erro a cada quadro vira uma linha so; a contagem e gravada quando chega outra mensagem
+            if (mensagem == ultimaMensagem && tipo == ultimoTipo)
+            {
+                repeticoes++;
+                return;
+            }
             try
             {
-                if (!pastaCriada)
-                {
-                    Directory.CreateDirectory(pasta);
-                    pastaCriada = true;
-                }
+                // A cada linha: a pasta pode ter sido apagada com o app aberto (depois de um adb pull, por exemplo)
+                Directory.CreateDirectory(pasta);
                 string caminho = Path.Combine(pasta, NomeArquivo(agora));
-                string linha = FormatarLinha(agora, tipo, mensagem, pilha) + "\n";
-                long tamanho = File.Exists(caminho) ? new FileInfo(caminho).Length : 0;
-                if (tamanho + Encoding.UTF8.GetByteCount(linha) <= limiteBytes)
-                {
-                    File.AppendAllText(caminho, linha);
-                }
-                else if (arquivoCheio != caminho)
-                {
-                    arquivoCheio = caminho;
-                    File.AppendAllText(caminho, FormatarLinha(agora, LogType.Warning,
-                        Prefixo + " Diario cheio: o resto do dia fica fora deste arquivo", "") + "\n");
-                }
+                if (repeticoes > 0)
+                    Acrescentar(caminho, agora, FormatarLinha(agora, LogType.Log,
+                        $"{Prefixo} A linha anterior se repetiu mais {repeticoes} vezes", ""));
+                Acrescentar(caminho, agora, FormatarLinha(agora, tipo, mensagem, pilha));
+                ultimaMensagem = mensagem;
+                ultimoTipo = tipo;
+                repeticoes = 0;
+                falhasSeguidas = 0;
             }
             catch (Exception e)
             {
-                Desligado = true;
                 MotivoDesligado = e.GetType().Name + ": " + e.Message;
+                if (++falhasSeguidas >= FalhasParaDesligar) Desligado = true;
             }
+        }
+    }
+
+    // Grava a linha se ela couber no limite do arquivo; na primeira que nao cabe, grava so o aviso de cheio
+    void Acrescentar(string caminho, DateTime agora, string linha)
+    {
+        linha += "\n";
+        long tamanho = File.Exists(caminho) ? new FileInfo(caminho).Length : 0;
+        if (tamanho + Encoding.UTF8.GetByteCount(linha) <= limiteBytes)
+        {
+            File.AppendAllText(caminho, linha);
+        }
+        else if (arquivoCheio != caminho)
+        {
+            arquivoCheio = caminho;
+            File.AppendAllText(caminho, FormatarLinha(agora, LogType.Warning,
+                Prefixo + " Diario cheio: o resto do dia fica fora deste arquivo", "") + "\n");
         }
     }
 
