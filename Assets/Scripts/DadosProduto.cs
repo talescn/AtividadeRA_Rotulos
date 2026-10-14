@@ -25,6 +25,9 @@ public class DadosProduto
     public string ingredientes;
     // Frase de alergenicos como esta no rotulo ("ALERGICOS: CONTEM ...")
     public string alergenos;
+    // Quando a lupa "ALTO EM" nao pode aparecer neste produto (IN 75/2020, Anexo XVI), o motivo:
+    // "leites (IN 75/2020, Anexo XVI, item 7)". Null quando a lupa se aplica.
+    public string isencaoLupa;
 
     [System.Serializable]
     public class Porcao

@@ -28,5 +28,6 @@
     { "chave": "zinco", "nome": "Zinco", "unidade": "mg", "por100": 1.7, "porPorcao": 3.3, "vd": 30, "nivel": 0 }
   ],
   "ingredientes": null,
-  "alergenos": null
+  "alergenos": null,
+  "isencaoLupa": "leites (IN 75/2020, Anexo XVI, item 7)"
 }

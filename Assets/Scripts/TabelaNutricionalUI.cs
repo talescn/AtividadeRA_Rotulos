@@ -23,6 +23,13 @@ public static class TabelaNutricionalUI
     static readonly Color CorTexto = new Color(0.08f, 0.08f, 0.08f);
     static readonly Color CorSecundaria = new Color(0.35f, 0.35f, 0.35f);
 
+    // Lupa "ALTO EM" no alto da tabela, no estilo da do rotulo
+    public const string NotaLupa = "Lupa calculada pelo app com os limites da IN 75/2020.";
+    const float LarguraLupa = 620f;
+    const float BordaLupa = 8f;
+    const float AlturaTituloLupa = 74f;
+    const float AlturaNutrienteLupa = 64f;
+
     public static RectTransform Montar(Transform pai, DadosProduto dados)
     {
         // Retangulo preto por tras faz a borda; o fundo branco fica por cima, recuado
@@ -37,6 +44,9 @@ public static class TabelaNutricionalUI
         float util = Largura - 2f * Margem;
         float y = Margem;
 
+        var lupa = RotulagemFrontal.Avaliar(dados);
+        y = SecaoLupa(raiz, y, util, lupa);
+
         y = Texto(raiz, "INFORMAÇÃO NUTRICIONAL", Margem, y, util, 60f, 54f, FontStyles.Bold, TextAlignmentOptions.Left);
         y = Traco(raiz, y, 2f);
         if (dados.porcoesPorEmbalagem.HasValue)
@@ -44,8 +54,9 @@ public static class TabelaNutricionalUI
         y = Texto(raiz, LinhaPorcao(dados), Margem, y, util, AlturaLinha, TamanhoTexto);
         y = Traco(raiz, y, 12f);
 
-        // Cabecalho: "**" marca quando a coluna "por 100" e do alimento pronto (como no Maggi)
-        string cabecalho100 = (dados.base100 ?? "100 g") + (string.IsNullOrEmpty(dados.observacaoBase100) ? "" : "**");
+        // Cabecalho: "**" marca quando a coluna "por 100" e do alimento pronto (como no Maggi); sem base100 (Open Food
+        // Facts sem porcao nem embalagem) nao se sabe se e por 100 g ou 100 ml
+        string cabecalho100 = (dados.base100 ?? "100 g/ml") +(string.IsNullOrEmpty(dados.observacaoBase100) ? "" : "**");
         y = LinhaColunas(raiz, y, "", cabecalho100, RotuloPorcao(dados.porcao), "%VD*", FontStyles.Bold, 0);
         y = Traco(raiz, y, 2f);
 
@@ -62,9 +73,41 @@ public static class TabelaNutricionalUI
         if (!string.IsNullOrEmpty(dados.observacaoBase100))
             y = Texto(raiz, "**" + dados.observacaoBase100, Margem, y, util, 42f, 27f);
         y = Texto(raiz, LinhaConferido(dados), Margem, y + 8f, util, 44f, 28f, FontStyles.Italic, TextAlignmentOptions.Left, CorSecundaria);
+        if (lupa.Altos().Count > 0 || lupa.FaltaDado().Count > 0 || lupa.Incertos().Count > 0)
+            y = Texto(raiz, NotaLupa, Margem, y, util, 42f, 27f, FontStyles.Italic, TextAlignmentOptions.Left, CorSecundaria);
 
         raiz.sizeDelta = new Vector2(Largura, y + Margem);
         return raiz;
+    }
+
+    // Lupa "ALTO EM" (titulo preto em fundo branco e cada nutriente em branco sobre preto, como no rotulo),
+    // o aviso de dado que falta, o de valor a conferir na embalagem e o motivo de o produto nao ter lupa.
+    // Devolve o y logo abaixo.
+    static float SecaoLupa(RectTransform raiz, float y, float util, RotulagemFrontal.Resultado lupa)
+    {
+        var altos = lupa.Altos();
+        if (altos.Count > 0)
+        {
+            float altura = 2f * BordaLupa + AlturaTituloLupa + altos.Count * AlturaNutrienteLupa;
+            Posicionar(Retangulo("Lupa", raiz, CorTexto), raiz, Margem, y, LarguraLupa, altura);
+            Posicionar(Retangulo("FundoTituloLupa", raiz, Color.white), raiz, Margem + BordaLupa, y + BordaLupa,
+                LarguraLupa - 2f * BordaLupa, AlturaTituloLupa);
+            float x = Margem + BordaLupa + 24f;
+            float largura = LarguraLupa - 2f * BordaLupa - 48f;
+            float linha = Texto(raiz, "ALTO EM", x, y + BordaLupa, largura, AlturaTituloLupa, 52f, FontStyles.Bold);
+            foreach (var nome in altos)
+                linha = Texto(raiz, nome, x, linha, largura, AlturaNutrienteLupa, 46f, FontStyles.Bold,
+                    TextAlignmentOptions.Left, Color.white);
+            y += altura + 16f;
+        }
+        foreach (var aviso in new[]
+                 {
+                     RotulagemFrontal.TextoFaltaDado(lupa), RotulagemFrontal.TextoIncerto(lupa),
+                     RotulagemFrontal.TextoIsencao(lupa)
+                 })
+            if (aviso != null)
+                y = Texto(raiz, aviso, Margem, y, util, 46f, 28f, FontStyles.Italic, TextAlignmentOptions.Left, CorSecundaria);
+        return y;
     }
 
     // ---------- Textos (publicos para os testes) ----------

@@ -50,6 +50,10 @@ public class InterfaceRotulosRA : MonoBehaviour
     [Tooltip("No modo leitura: transforma o rotulo do produto aberto num marcador de RA.")]
     public Button botaoEnsinar;
 
+    [Header("Quantidade e voz")]
+    [Tooltip("No modo leitura: quantidade que a pessoa vai consumir, carboidratos nela e o botao Ouvir.")]
+    public PainelConsumoUI painelConsumo;
+
     const string Dica = "Aponte para o rótulo ou para o código de barras";
     static readonly Color CorLanternaApagada = Color.white;
     static readonly Color CorLanternaLigada = new Color(1f, 0.85f, 0.2f);
@@ -166,6 +170,7 @@ public class InterfaceRotulosRA : MonoBehaviour
         DadosProduto dados = gerenciador.Repositorio.BuscarSemRede(gtin);
         if (dados != null && dados.TemTabela)
         {
+            Debug.Log($"[RA] Dados de {gtin}: no aparelho (fonte {dados.fonte})");
             AbrirLeitura(dados);
             return;
         }
@@ -175,6 +180,7 @@ public class InterfaceRotulosRA : MonoBehaviour
         StartCoroutine(gerenciador.Repositorio.BuscarOpenFoodFacts(gtin, (recebidos, motivo) =>
         {
             buscandoCodigo = false;
+            Debug.Log($"[RA] Dados de {gtin}: " + (recebidos != null ? "Open Food Facts" : "sem tabela (" + motivo + ")"));
             if (recebidos != null)
             {
                 MostrarAviso(null, 0f);
@@ -345,6 +351,12 @@ public class InterfaceRotulosRA : MonoBehaviour
         dadosEmLeitura = dados;
         if (botaoEnsinar != null)
             botaoEnsinar.gameObject.SetActive(ensinar != null && dados != null && DadosProduto.GtinValido(dados.gtin));
+        // Sem dados (so a foto da tabela) o painel some; ao fechar a leitura, a voz para junto
+        if (painelConsumo != null)
+        {
+            if (dados != null) painelConsumo.Mostrar(dados);
+            else painelConsumo.Esconder();
+        }
     }
 
     void MostrarLeitura(RectTransform conteudo, string titulo)
@@ -367,6 +379,8 @@ public class InterfaceRotulosRA : MonoBehaviour
 
     public void FecharLeitura()
     {
+        // No diario de testes, o intervalo ate o proximo codigo lido mede quanto a leitura demora
+        if (EmLeitura) Debug.Log("[RA] Leitura fechada");
         painelLeitura.SetActive(false);
         LimparTabelaDados();
         DefinirDadosEmLeitura(null);

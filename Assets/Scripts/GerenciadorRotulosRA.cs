@@ -33,6 +33,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         // Nome do marcador no Vuforia ("Rotulo_..." dos produtos da cena, "Ensinado_..." dos ensinados no app)
         public string nomeMarcador;
         public Transform target;
+        public ObservadorRotulo observador;
         public Transform tabela;
         public Vector3 escalaBase;
         public DadosProduto dados;
@@ -142,12 +143,13 @@ public class GerenciadorRotulosRA : MonoBehaviour
         }
 
         target.gameObject.name = "ImageTarget_" + nomeMarcador;
-        // Mostra/esconde os filhos automaticamente quando o rotulo e encontrado/perdido
-        var handler = target.gameObject.AddComponent<DefaultObserverEventHandler>();
+        // Mostra/esconde os filhos automaticamente quando o rotulo e encontrado/perdido, com meio segundo de
+        // espera antes de esconder para a tabela nao piscar
+        var handler = target.gameObject.AddComponent<ObservadorRotulo>();
         // So mostra a tabela enquanto o rotulo esta realmente visivel (evita tabela "fantasma")
         handler.StatusFilter = DefaultObserverEventHandler.TrackingStatusFilter.Tracked;
 
-        var item = new ProdutoEmCena { produto = p, nomeMarcador = nomeMarcador, target = target.transform };
+        var item = new ProdutoEmCena { produto = p, nomeMarcador = nomeMarcador, target = target.transform, observador = handler };
         emCena.Add(item);
         DefinirTabela(item, dados);
 
@@ -173,6 +175,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         DateTime agora = DateTime.Now;
         string arquivo = CatalogoMarcadores.NomeArquivo(dados.gtin, agora);
         if (CriarMarcadorEnsinado(arquivo, larguraRotuloEnsinado, dados, imagem) == null) return false;
+        Debug.Log($"[RA] Rotulo ensinado: {dados.gtin}, nota {estrelas} de 5");
 
         var removidos = new List<CatalogoMarcadores.Marcador>();
         try
@@ -236,7 +239,12 @@ public class GerenciadorRotulosRA : MonoBehaviour
         var item = emCena.Find(i => i.nomeMarcador == nomeMarcador);
         if (item == null) return;
         emCena.Remove(item);
-        if (rastreados.Remove(item)) AoMudarRastreamento?.Invoke();
+        if (rastreados.Remove(item))
+        {
+            // Outra vista do mesmo produto na camera passa a mostrar a tabela
+            AtualizarTabelasVisiveis();
+            AoMudarRastreamento?.Invoke();
+        }
         Destroy(item.target.gameObject);
         Destroy(item.produto.rotulo);
         Debug.Log("[RA] Marcador removido (vista mais antiga do produto): " + nomeMarcador);
@@ -247,8 +255,10 @@ public class GerenciadorRotulosRA : MonoBehaviour
         if (dados == null) return;
         Debug.Log($"[RA] Dados do Open Food Facts para {item.produto.nome}");
         DefinirTabela(item, dados);
-        // A tabela nova nasce depois do evento de rastreamento: liga ou desliga conforme o rotulo esta visivel
-        DefinirVisivel(item.tabela, item.rastreado);
+        // A tabela nova nasce depois do evento de rastreamento: comeca escondida e aparece se o rotulo esta
+        // visivel e e a vista que mostra a tabela do produto
+        DefinirVisivel(item.tabela, false);
+        AtualizarTabelasVisiveis();
     }
 
     // Troca a tabela do target: desenhada a partir dos dados ou, sem dados, a foto
@@ -278,7 +288,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         float escala = p.larguraTabelaMetros / TabelaNutricionalUI.Largura;
         rt.localScale = new Vector3(escala, escala, escala);
 
-        // O toque na tabela e detectado neste collider; o DefaultObserverEventHandler o liga e desliga junto com o Canvas
+        // O toque na tabela e detectado neste collider; o ObservadorRotulo o liga e desliga junto com o Canvas
         go.AddComponent<BoxCollider>().size = new Vector3(tabela.sizeDelta.x, tabela.sizeDelta.y, 1f);
         return rt;
     }
@@ -288,7 +298,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
         quad.name = "TabelaNutricional_" + p.nome;
         // O MeshCollider do quad fica: e nele que o toque na tabela e detectado.
-        // O DefaultObserverEventHandler desliga o collider junto com a tabela.
+        // O ObservadorRotulo desliga o collider junto com a tabela.
 
         quad.transform.SetParent(pai, false);
         // Plano do Image Target = XZ (normal +Y apontando para a camera).
@@ -338,12 +348,26 @@ public class GerenciadorRotulosRA : MonoBehaviour
     {
         // Evento atrasado de um marcador que acabou de ser removido
         if (!emCena.Contains(item)) return;
-        // No log, para medir se o rotulo fica estavel ou entra e sai da camera
-        Debug.Log($"[RA] Rotulo {(rastreado ? "na camera" : "saiu da camera")}: {item.nomeMarcador}");
+        // No log, para medir se o rotulo fica estavel: na saida, quantas quedas curtas a espera segurou
+        int quedas = rastreado ? 0 : item.observador.QuedasCurtas;
+        Debug.Log($"[RA] Rotulo {(rastreado ? "na camera" : "saiu da camera")}: {item.nomeMarcador}" +
+                  (quedas == 0 ? "" : quedas == 1 ? " (1 queda curta)" : $" ({quedas} quedas curtas)"));
         item.rastreado = rastreado;
         rastreados.Remove(item);
         if (rastreado) rastreados.Add(item);
+        AtualizarTabelasVisiveis();
         AoMudarRastreamento?.Invoke();
+    }
+
+    // Uma tabela por produto: com duas vistas ensinadas do mesmo rotulo na camera, so a que entrou primeiro
+    // mostra a tabela; quando ela sai, a outra assume. O handler do Vuforia ja ligou a tabela antes de avisar,
+    // e ela e escondida na mesma chamada, sem chegar a ser desenhada.
+    void AtualizarTabelasVisiveis()
+    {
+        var gtins = new List<string>();
+        foreach (var r in rastreados) gtins.Add(r.produto.gtin);
+        bool[] mostrar = CalculosRastreio.QuaisMostrar(gtins);
+        for (int i = 0; i < rastreados.Count; i++) DefinirVisivel(rastreados[i].tabela, mostrar[i]);
     }
 
     // Faz o mesmo que o DefaultObserverEventHandler, para uma tabela criada depois do evento

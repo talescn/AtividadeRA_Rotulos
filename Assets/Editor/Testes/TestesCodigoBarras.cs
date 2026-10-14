@@ -64,12 +64,34 @@ public class TestesCodigoBarras
     }
 
     [Test]
+    public void Ean8PrecisaDeTresLeiturasIguais()
+    {
+        // O EAN-8 de verdade (Sprite, Fanta) so leva um quadro a mais
+        var confirmacao = new LeituraEstavel();
+        Assert.IsNull(confirmacao.Registrar("78939745", 0f));
+        Assert.IsNull(confirmacao.Registrar("78939745", 0.3f), "duas leituras nao bastam para um EAN-8");
+        Assert.AreEqual("78939745", confirmacao.Registrar("78939745", 0.6f));
+    }
+
+    [Test]
+    public void Ean8FalsoComoNoDiarioNaoPassaEOEan13ContinuaComDuas()
+    {
+        // No teste de 14/10/2026 o leitor tirou EAN-8 de EAN-13 (89647714 enquanto lia o 7896036099537), com
+        // digito verificador valido: dois quadros iguais assim abririam um produto que nao existe
+        var confirmacao = new LeituraEstavel();
+        Assert.IsNull(confirmacao.Registrar("89647714", 0f));
+        Assert.IsNull(confirmacao.Registrar("89647714", 0.3f));
+        Assert.IsNull(confirmacao.Registrar("7896036099537", 0.6f));
+        Assert.AreEqual("7896036099537", confirmacao.Registrar("7896036099537", 0.9f));
+    }
+
+    [Test]
     public void QuadroSemCodigoEntreDuasLeiturasNaoAtrapalha()
     {
         var confirmacao = new LeituraEstavel(2, 1.5f, 8f);
-        Assert.IsNull(confirmacao.Registrar("78939745", 0f));
+        Assert.IsNull(confirmacao.Registrar("7898215157403", 0f));
         Assert.IsNull(confirmacao.Registrar(null, 0.3f));
-        Assert.AreEqual("78939745", confirmacao.Registrar("78939745", 0.6f));
+        Assert.AreEqual("7898215157403", confirmacao.Registrar("7898215157403", 0.6f));
     }
 
     [Test]
@@ -86,14 +108,28 @@ public class TestesCodigoBarras
     public void MesmoCodigoFicaEmSilencioDepoisDeAceito()
     {
         var confirmacao = new LeituraEstavel(2, 1.5f, 8f);
-        confirmacao.Registrar("78939745", 0f);
-        Assert.AreEqual("78939745", confirmacao.Registrar("78939745", 0.3f));
+        confirmacao.Registrar("7898215157403", 0f);
+        Assert.AreEqual("7898215157403", confirmacao.Registrar("7898215157403", 0.3f));
 
-        confirmacao.Registrar("78939745", 1f);
-        Assert.IsNull(confirmacao.Registrar("78939745", 1.3f), "acabou de ser aceito");
+        confirmacao.Registrar("7898215157403", 1f);
+        Assert.IsNull(confirmacao.Registrar("7898215157403", 1.3f), "acabou de ser aceito");
 
-        confirmacao.Registrar("78939745", 9f);
-        Assert.AreEqual("78939745", confirmacao.Registrar("78939745", 9.3f), "passado o silencio, vale de novo");
+        confirmacao.Registrar("7898215157403", 9f);
+        Assert.AreEqual("7898215157403", confirmacao.Registrar("7898215157403", 9.3f), "passado o silencio, vale de novo");
+    }
+
+    [Test]
+    public void SoOCodigoAceitoFicaSilenciadoEPorPoucoTempo()
+    {
+        var confirmacao = new LeituraEstavel(2, 1.5f, 8f);
+        Assert.IsFalse(confirmacao.Silenciado("7898215157403", 0f), "nada aceito ainda");
+        confirmacao.Registrar("7898215157403", 0f);
+        confirmacao.Registrar("7898215157403", 0.3f);
+
+        Assert.IsTrue(confirmacao.Silenciado("7898215157403", 1f));
+        Assert.IsFalse(confirmacao.Silenciado("78939745", 1f), "outro codigo");
+        Assert.IsFalse(confirmacao.Silenciado(null, 1f));
+        Assert.IsFalse(confirmacao.Silenciado("7898215157403", 8.3f), "passado o silencio");
     }
 
     // Imagem em tons de cinza (0 = barra, 255 = fundo), como a camera entrega no formato GRAYSCALE

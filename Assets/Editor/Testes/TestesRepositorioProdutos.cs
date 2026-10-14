@@ -121,6 +121,18 @@ public class TestesRepositorioProdutos
     }
 
     [Test]
+    public void SemPorcaoAEmbalagemDizSeAColunaEDeMl()
+    {
+        // Sem serving_size, a quantidade da embalagem ("350 ml", "1 L") decide; sem nenhuma das duas, nao se sabe
+        string semPorcao = "{\"code\":\"78939745\",\"status\":1,\"product\":{QUANTIDADE" +
+                           "\"nutriments\":{\"energy-kcal_100g\":41,\"sodium_100g\":0.4}}}";
+        Assert.AreEqual("100 ml", RepositorioProdutos.ConverterOpenFoodFacts(semPorcao.Replace("QUANTIDADE", "\"quantity\":\"350 ml\",")).base100);
+        Assert.AreEqual("100 ml", RepositorioProdutos.ConverterOpenFoodFacts(semPorcao.Replace("QUANTIDADE", "\"quantity\":\"1 L\",")).base100);
+        Assert.AreEqual("100 g", RepositorioProdutos.ConverterOpenFoodFacts(semPorcao.Replace("QUANTIDADE", "\"quantity\":\"200 g\",")).base100);
+        Assert.IsNull(RepositorioProdutos.ConverterOpenFoodFacts(semPorcao.Replace("QUANTIDADE", "")).base100);
+    }
+
+    [Test]
     public void NumeroComoTextoTambemServe()
     {
         string json = "{\"code\":\"78939745\",\"status\":1,\"product\":{\"serving_size\":\"200 ml\",\"serving_quantity\":\"200\"," +

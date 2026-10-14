@@ -74,6 +74,68 @@ public class TestesTabelaNutricional
         Object.DestroyImmediate(tabela.parent.gameObject);
     }
 
+    // ---------- Lupa "ALTO EM" ----------
+
+    const string NotaLupa = "Lupa calculada pelo app com os limites da IN 75/2020.";
+
+    static List<string> TextosDe(string gtin)
+    {
+        var textos = Montar(RepositorioProdutos.CarregarLocal(gtin), out RectTransform tabela);
+        Object.DestroyImmediate(tabela.parent.gameObject);
+        return textos;
+    }
+
+    [Test]
+    public void SpriteGanhaALupaDeAcucarAdicionado()
+    {
+        var textos = TextosDe("78939745");
+        CollectionAssert.Contains(textos, "ALTO EM");
+        CollectionAssert.Contains(textos, "AÇÚCAR ADICIONADO");
+        CollectionAssert.DoesNotContain(textos, "SÓDIO");
+        CollectionAssert.Contains(textos, NotaLupa);
+    }
+
+    [Test]
+    public void AbaixoDosLimitesNaoTemLupa()
+    {
+        var textos = TextosDe("7891000538500");
+        CollectionAssert.DoesNotContain(textos, "ALTO EM");
+        CollectionAssert.DoesNotContain(textos, NotaLupa);
+    }
+
+    [Test]
+    public void LeiteDizQueALupaNaoSeAplica()
+    {
+        var textos = TextosDe("7898215157403");
+        CollectionAssert.DoesNotContain(textos, "ALTO EM");
+        CollectionAssert.Contains(textos, "A lupa não se aplica a leites (IN 75/2020, Anexo XVI, item 7).");
+    }
+
+    [Test]
+    public void RotuloAntigoAvisaQueFaltaOAcucarAdicionado()
+    {
+        var textos = TextosDe("78938571");
+        CollectionAssert.DoesNotContain(textos, "ALTO EM");
+        CollectionAssert.Contains(textos, "Sem dado de açúcar adicionado neste rótulo.");
+        CollectionAssert.Contains(textos, NotaLupa);
+    }
+
+    [Test]
+    public void SemSaberSeELiquidoPedeParaConferirNaEmbalagem()
+    {
+        // Open Food Facts sem porcao nem embalagem em ml ou g: 400 mg de sodio fica entre os limites (300 e 600)
+        var dados = new DadosProduto { base100 = null };
+        dados.nutrientes.Add(new DadosProduto.Nutriente { chave = "sodio", nome = "Sódio", unidade = "mg", por100 = 400f });
+        var textos = Montar(dados, out RectTransform tabela);
+
+        CollectionAssert.DoesNotContain(textos, "ALTO EM");
+        CollectionAssert.Contains(textos, "Confira sódio na embalagem: não sei se o produto é líquido.");
+        CollectionAssert.Contains(textos, NotaLupa);
+        CollectionAssert.Contains(textos, "100 g/ml", "a coluna nao finge ser de 100 g");
+
+        Object.DestroyImmediate(tabela.parent.gameObject);
+    }
+
     static List<string> Montar(DadosProduto dados, out RectTransform tabela)
     {
         var pai = new GameObject("TesteTabela", typeof(RectTransform));
