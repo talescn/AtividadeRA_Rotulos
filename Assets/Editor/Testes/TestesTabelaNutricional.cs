@@ -120,6 +120,22 @@ public class TestesTabelaNutricional
         CollectionAssert.Contains(textos, NotaLupa);
     }
 
+    [Test]
+    public void SemSaberSeELiquidoPedeParaConferirNaEmbalagem()
+    {
+        // Open Food Facts sem porcao nem embalagem em ml ou g: 400 mg de sodio fica entre os limites (300 e 600)
+        var dados = new DadosProduto { base100 = null };
+        dados.nutrientes.Add(new DadosProduto.Nutriente { chave = "sodio", nome = "Sódio", unidade = "mg", por100 = 400f });
+        var textos = Montar(dados, out RectTransform tabela);
+
+        CollectionAssert.DoesNotContain(textos, "ALTO EM");
+        CollectionAssert.Contains(textos, "Confira sódio na embalagem: não sei se o produto é líquido.");
+        CollectionAssert.Contains(textos, NotaLupa);
+        CollectionAssert.Contains(textos, "100 g/ml", "a coluna nao finge ser de 100 g");
+
+        Object.DestroyImmediate(tabela.parent.gameObject);
+    }
+
     static List<string> Montar(DadosProduto dados, out RectTransform tabela)
     {
         var pai = new GameObject("TesteTabela", typeof(RectTransform));

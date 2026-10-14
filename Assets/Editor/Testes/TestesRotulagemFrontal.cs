@@ -99,6 +99,20 @@ public class TestesRotulagemFrontal
     }
 
     [Test]
+    public void SemSaberSeELiquidoSoDecideForaDaFaixaEntreOsLimites()
+    {
+        // Produto do Open Food Facts sem porcao nem embalagem em ml ou g: base100 null
+        Assert.AreEqual(RotulagemFrontal.Estado.Alto, Estado(Produto(null, "sodio", "mg", 700f), "sodio"), "alto ate para solido");
+        Assert.AreEqual(RotulagemFrontal.Estado.Abaixo, Estado(Produto(null, "sodio", "mg", 200f), "sodio"), "abaixo ate para liquido");
+        Assert.AreEqual(RotulagemFrontal.Estado.Incerto, Estado(Produto(null, "sodio", "mg", 400f), "sodio"));
+
+        var lupa = RotulagemFrontal.Avaliar(Produto(null, "sodio", "mg", 400f));
+        CollectionAssert.AreEqual(new[] { "SÓDIO" }, lupa.Incertos());
+        Assert.AreEqual("Confira sódio na embalagem: não sei se o produto é líquido.", RotulagemFrontal.TextoIncerto(lupa));
+        Assert.IsNull(RotulagemFrontal.TextoIncerto(Avaliar("78939745")));
+    }
+
+    [Test]
     public void VariosAltosEFaltasViramUmaFraseSo()
     {
         Assert.AreEqual("açúcar adicionado", RotulagemFrontal.Juntar(new[] { "açúcar adicionado" }));

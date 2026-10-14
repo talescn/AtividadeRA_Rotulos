@@ -54,8 +54,9 @@ public static class TabelaNutricionalUI
         y = Texto(raiz, LinhaPorcao(dados), Margem, y, util, AlturaLinha, TamanhoTexto);
         y = Traco(raiz, y, 12f);
 
-        // Cabecalho: "**" marca quando a coluna "por 100" e do alimento pronto (como no Maggi)
-        string cabecalho100 = (dados.base100 ?? "100 g") + (string.IsNullOrEmpty(dados.observacaoBase100) ? "" : "**");
+        // Cabecalho: "**" marca quando a coluna "por 100" e do alimento pronto (como no Maggi); sem base100 (Open Food
+        // Facts sem porcao nem embalagem) nao se sabe se e por 100 g ou 100 ml
+        string cabecalho100 = (dados.base100 ?? "100 g/ml") +(string.IsNullOrEmpty(dados.observacaoBase100) ? "" : "**");
         y = LinhaColunas(raiz, y, "", cabecalho100, RotuloPorcao(dados.porcao), "%VD*", FontStyles.Bold, 0);
         y = Traco(raiz, y, 2f);
 
@@ -72,7 +73,7 @@ public static class TabelaNutricionalUI
         if (!string.IsNullOrEmpty(dados.observacaoBase100))
             y = Texto(raiz, "**" + dados.observacaoBase100, Margem, y, util, 42f, 27f);
         y = Texto(raiz, LinhaConferido(dados), Margem, y + 8f, util, 44f, 28f, FontStyles.Italic, TextAlignmentOptions.Left, CorSecundaria);
-        if (lupa.Altos().Count > 0 || lupa.FaltaDado().Count > 0)
+        if (lupa.Altos().Count > 0 || lupa.FaltaDado().Count > 0 || lupa.Incertos().Count > 0)
             y = Texto(raiz, NotaLupa, Margem, y, util, 42f, 27f, FontStyles.Italic, TextAlignmentOptions.Left, CorSecundaria);
 
         raiz.sizeDelta = new Vector2(Largura, y + Margem);
@@ -80,7 +81,8 @@ public static class TabelaNutricionalUI
     }
 
     // Lupa "ALTO EM" (titulo preto em fundo branco e cada nutriente em branco sobre preto, como no rotulo),
-    // o aviso de dado que falta e o motivo de o produto nao ter lupa. Devolve o y logo abaixo.
+    // o aviso de dado que falta, o de valor a conferir na embalagem e o motivo de o produto nao ter lupa.
+    // Devolve o y logo abaixo.
     static float SecaoLupa(RectTransform raiz, float y, float util, RotulagemFrontal.Resultado lupa)
     {
         var altos = lupa.Altos();
@@ -98,7 +100,11 @@ public static class TabelaNutricionalUI
                     TextAlignmentOptions.Left, Color.white);
             y += altura + 16f;
         }
-        foreach (var aviso in new[] { RotulagemFrontal.TextoFaltaDado(lupa), RotulagemFrontal.TextoIsencao(lupa) })
+        foreach (var aviso in new[]
+                 {
+                     RotulagemFrontal.TextoFaltaDado(lupa), RotulagemFrontal.TextoIncerto(lupa),
+                     RotulagemFrontal.TextoIsencao(lupa)
+                 })
             if (aviso != null)
                 y = Texto(raiz, aviso, Margem, y, util, 46f, 28f, FontStyles.Italic, TextAlignmentOptions.Left, CorSecundaria);
         return y;

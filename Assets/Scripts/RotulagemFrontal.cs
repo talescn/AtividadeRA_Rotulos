@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 // Lupa da rotulagem nutricional frontal ("ALTO EM ...") calculada a partir da tabela.
@@ -5,9 +6,11 @@ using System.Collections.Generic;
 // RDC 429/2020, art. 19: o limite vale para o alimento como exposto a venda ou, se ele precisa de preparo,
 // pronto para o consumo, que e a coluna "por 100" do rotulo nesse caso (como no Maggi).
 // Os alimentos do Anexo XVI da IN 75 (leites, queijos, oleos...) nao podem ter lupa: o JSON diz isso em isencaoLupa.
+// Sem saber se o produto e liquido (Open Food Facts sem porcao nem embalagem em ml ou g), so decide o valor que fica
+// fora da faixa entre os dois limites; dentro dela o nutriente fica Incerto, e a pessoa confere na embalagem.
 public static class RotulagemFrontal
 {
-    public enum Estado { Abaixo, Alto, SemDado }
+    public enum Estado { Abaixo, Alto, SemDado, Incerto }
 
     public class Item
     {
@@ -28,6 +31,7 @@ public static class RotulagemFrontal
 
         public List<string> Altos() => Rotulos(Estado.Alto);
         public List<string> FaltaDado() => Rotulos(Estado.SemDado);
+        public List<string> Incertos() => Rotulos(Estado.Incerto);
 
         List<string> Rotulos(Estado estado)
         {
@@ -55,17 +59,28 @@ public static class RotulagemFrontal
             return resultado;
         }
 
-        bool liquido = CalculosPorcao.UnidadeBase(dados) == "ml";
+        // "ml", "g" ou null quando nao se sabe
+        string unidadeBase = CalculosPorcao.UnidadeBase(dados);
         foreach (var limite in Limites)
         {
             var n = dados.Buscar(limite.chave);
             float? valor = Converter(CalculosPorcao.Por100(n, dados), n?.unidade, limite.unidade);
-            // Sem valor fica SemDado, nunca Abaixo: ausencia de dado nao e teor baixo
-            Estado estado = !valor.HasValue ? Estado.SemDado
-                : valor.Value >= (liquido ? limite.liquido : limite.solido) ? Estado.Alto : Estado.Abaixo;
+            Estado estado = Classificar(valor, unidadeBase, limite.solido, limite.liquido);
             resultado.itens.Add(new Item { chave = limite.chave, rotulo = limite.rotulo, estado = estado, valor100 = valor });
         }
         return resultado;
+    }
+
+    static Estado Classificar(float? valor, string unidadeBase, float solido, float liquido)
+    {
+        // Sem valor fica SemDado, nunca Abaixo: ausencia de dado nao e teor baixo
+        if (!valor.HasValue) return Estado.SemDado;
+        if (unidadeBase == "ml") return valor.Value >= liquido ? Estado.Alto : Estado.Abaixo;
+        if (unidadeBase == "g") return valor.Value >= solido ? Estado.Alto : Estado.Abaixo;
+        // Sem a unidade: alto ate pelo limite maior, abaixo ate pelo menor; entre os dois nao da para dizer
+        if (valor.Value >= Math.Max(solido, liquido)) return Estado.Alto;
+        if (valor.Value < Math.Min(solido, liquido)) return Estado.Abaixo;
+        return Estado.Incerto;
     }
 
     // "A lupa não se aplica a leites (IN 75/2020, Anexo XVI, item 7)."; null quando a lupa se aplica
@@ -79,6 +94,14 @@ public static class RotulagemFrontal
     {
         var faltam = resultado.FaltaDado();
         return faltam.Count == 0 ? null : "Sem dado de " + Juntar(Minusculas(faltam)) + " neste rótulo.";
+    }
+
+    // "Confira sódio na embalagem: não sei se o produto é líquido."; null quando nada ficou incerto
+    public static string TextoIncerto(Resultado resultado)
+    {
+        var incertos = resultado.Incertos();
+        return incertos.Count == 0 ? null
+            : "Confira " + Juntar(Minusculas(incertos)) + " na embalagem: não sei se o produto é líquido.";
     }
 
     // "a", "a e b", "a, b e c"

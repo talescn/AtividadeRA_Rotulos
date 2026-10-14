@@ -34,6 +34,15 @@ public class TestesResumoFalado
     }
 
     [Test]
+    public void SemSaberSeELiquidoPedeParaConferirNaEmbalagem()
+    {
+        var dados = new DadosProduto { nome = "Molho", base100 = null };
+        dados.nutrientes.Add(new DadosProduto.Nutriente { chave = "sodio", nome = "Sódio", unidade = "mg", por100 = 400f });
+        Assert.AreEqual("Molho. Sem dado de açúcar adicionado e gordura saturada neste rótulo. " +
+                        "Confira sódio na embalagem: não sei se o produto é líquido.", ResumoFalado.Montar(dados));
+    }
+
+    [Test]
     public void LeiteNaoFalaDeLupa()
     {
         Assert.AreEqual("Leite UHT Integral Ninho Forti+ 1 L. Por porção de 200 mililitros: 118 quilocalorias, " +

@@ -16,6 +16,8 @@ public static class ResumoFalado
         if (altos.Count > 0) frases.Add("Alto em " + RotulagemFrontal.Juntar(RotulagemFrontal.Minusculas(altos)) + ".");
         string falta = RotulagemFrontal.TextoFaltaDado(lupa);
         if (falta != null) frases.Add(falta);
+        string incerto = RotulagemFrontal.TextoIncerto(lupa);
+        if (incerto != null) frases.Add(incerto);
 
         string porcao = FrasePorcao(dados);
         if (porcao != null) frases.Add(porcao);
