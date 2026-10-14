@@ -1,0 +1,10 @@
+<!-- O Newtonsoft cria estas classes por reflexao ao ler os JSONs dos produtos e o indice dos marcadores
+     ensinados. Sem isto, o IL2CPP pode remover construtores e campos que o codigo nao usa diretamente. -->
+<linker>
+  <assembly fullname="Assembly-CSharp">
+    <type fullname="DadosProduto" preserve="all"/>
+    <type fullname="DadosProduto/Porcao" preserve="all"/>
+    <type fullname="DadosProduto/Nutriente" preserve="all"/>
+    <type fullname="CatalogoMarcadores/Marcador" preserve="all"/>
+  </assembly>
+</linker>

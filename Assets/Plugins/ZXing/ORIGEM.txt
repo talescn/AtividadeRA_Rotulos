@@ -1,0 +1,5 @@
+ZXing.Net 0.16.11 - leitura de codigo de barras
+Arquivo: lib/netstandard2.0/zxing.dll do pacote NuGet
+Origem: https://www.nuget.org/packages/ZXing.Net/0.16.11 (projeto: https://github.com/micjahn/ZXing.Net/)
+SHA-256 do pacote .nupkg: 7d39234d668e558b3d374d18116ed57021d7c0df482801f1e1db4f1db9314ec3
+Licenca: Apache-2.0 (texto completo em LICENSE.txt, copiado do arquivo COPYING do projeto)

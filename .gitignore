@@ -27,6 +27,13 @@
 Assets/Resources/VuforiaConfiguration.asset
 Assets/Resources/VuforiaConfiguration.asset.meta
 Packages/*.tgz
+# Arquivos que o Vuforia cria durante o build Android e apaga no fim (o primeiro tem a license key em texto puro)
+Assets/VuforiaLicense.cs
+Assets/VuforiaLicense.cs.meta
+Assets/Resources/alpha.shader
+Assets/Resources/alpha.shader.meta
+Assets/Resources/PerformanceTestRun*.json
+Assets/Resources/PerformanceTestRun*.json.meta
 
 # Videos de entrega
 *.mp4

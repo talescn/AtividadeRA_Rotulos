@@ -1,0 +1,180 @@
+using NUnit.Framework;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+// Confere se a cena montada pelo menu tem tudo o que a RA, o zoom e o modo leitura precisam.
+public class TestesCenaAtividade
+{
+    const string CenaAtividade = "Assets/Scenes/AtividadeRA_Rotulos.unity";
+
+    Scene cena;
+    bool fecharNoFim;
+
+    [OneTimeSetUp]
+    public void AbrirCena()
+    {
+        // Se a cena ja estiver aberta no Editor, usa a aberta e nao fecha no fim
+        cena = SceneManager.GetSceneByPath(CenaAtividade);
+        fecharNoFim = !cena.isLoaded;
+        if (fecharNoFim)
+            cena = EditorSceneManager.OpenScene(CenaAtividade, OpenSceneMode.Additive);
+    }
+
+    [OneTimeTearDown]
+    public void FecharCena()
+    {
+        if (fecharNoFim) EditorSceneManager.CloseScene(cena, true);
+    }
+
+    T Buscar<T>() where T : Component
+    {
+        foreach (var raiz in cena.GetRootGameObjects())
+        {
+            var componente = raiz.GetComponentInChildren<T>(true);
+            if (componente != null) return componente;
+        }
+        return null;
+    }
+
+    [Test]
+    public void TemACameraDoVuforia()
+    {
+        Assert.IsNotNull(Buscar<Vuforia.VuforiaBehaviour>(), "falta a ARCamera do Vuforia");
+    }
+
+    [Test]
+    public void TemOsTresProdutosComFotosELarguras()
+    {
+        var gerenciador = Buscar<GerenciadorRotulosRA>();
+        Assert.IsNotNull(gerenciador);
+        Assert.AreEqual(3, gerenciador.produtos.Count);
+        foreach (var p in gerenciador.produtos)
+        {
+            Assert.IsNotNull(p.rotulo, p.nome + ": sem foto do rotulo");
+            Assert.IsNotNull(p.tabelaNutricional, p.nome + ": sem foto da tabela");
+            Assert.Greater(p.larguraRotuloMetros, 0f, p.nome);
+            Assert.Greater(p.larguraTabelaMetros, 0f, p.nome);
+        }
+    }
+
+    [Test]
+    public void ProdutosComGtinTemJsonLocal()
+    {
+        var gerenciador = Buscar<GerenciadorRotulosRA>();
+        int comGtin = 0;
+        foreach (var p in gerenciador.produtos)
+        {
+            if (string.IsNullOrEmpty(p.gtin)) continue;
+            comGtin++;
+            Assert.IsNotNull(RepositorioProdutos.CarregarLocal(p.gtin), $"{p.nome}: falta Resources/Produtos/{p.gtin}.json");
+        }
+        // Os tres produtos da atividade tem GTIN conferido na embalagem
+        Assert.AreEqual(3, comGtin);
+    }
+
+    [Test]
+    public void EventSystemUsaOInputSystemNovo()
+    {
+        // O projeto so tem o Input System novo: o StandaloneInputModule daria erro
+        var eventSystem = Buscar<EventSystem>();
+        Assert.IsNotNull(eventSystem, "falta o EventSystem");
+        Assert.IsNotNull(eventSystem.GetComponent<InputSystemUIInputModule>());
+        Assert.IsNull(eventSystem.GetComponent<StandaloneInputModule>());
+    }
+
+    [Test]
+    public void InterfaceEstaLigadaAoGerenciador()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        Assert.IsNotNull(ui, "falta o InterfaceRotulosRA");
+        Assert.AreSame(Buscar<GerenciadorRotulosRA>(), ui.gerenciador);
+        Assert.IsNotNull(ui.controleZoom);
+        Assert.IsNotNull(ui.textoZoom);
+        Assert.IsNotNull(ui.botaoLer);
+        Assert.IsNotNull(ui.painelLeitura);
+        Assert.IsNotNull(ui.visorLeitura);
+        Assert.IsNotNull(ui.tabelaLeitura);
+        Assert.IsNotNull(ui.tituloLeitura);
+        Assert.IsNotNull(ui.botaoFechar);
+        Assert.IsTrue(ui.tabelaLeitura.transform.IsChildOf(ui.visorLeitura), "a tabela da leitura precisa ficar dentro do visor");
+        Assert.IsNotNull(ui.GetComponentInParent<Canvas>());
+    }
+
+    [Test]
+    public void ControleDeZoomVaiDeMeioATres()
+    {
+        var controle = Buscar<InterfaceRotulosRA>().controleZoom;
+        Assert.AreEqual(CalculosGestos.ZoomMinimo, controle.minValue);
+        Assert.AreEqual(CalculosGestos.ZoomMaximo, controle.maxValue);
+        Assert.AreEqual(1f, controle.value);
+    }
+
+    [Test]
+    public void ModoLeituraEBotaoLerComecamEscondidos()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        Assert.IsFalse(ui.painelLeitura.activeSelf);
+        Assert.IsFalse(ui.botaoLer.gameObject.activeSelf);
+    }
+
+    [Test]
+    public void LeitorDeCodigoDeBarrasEstaLigadoAInterface()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        Assert.IsNotNull(ui.leitorCodigo, "falta o LeitorCodigoBarras");
+        Assert.IsNotNull(ui.faixaAviso);
+        Assert.IsNotNull(ui.textoAviso);
+        Assert.IsTrue(ui.textoAviso.transform.IsChildOf(ui.faixaAviso.transform));
+        Assert.IsFalse(ui.faixaAviso.activeSelf, "a faixa so aparece quando ha dica ou aviso");
+    }
+
+    [Test]
+    public void LanternaEFocoEstaoLigadosAInterface()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        Assert.IsNotNull(ui.controleCamera, "falta o ControleCamera");
+        Assert.IsNotNull(ui.botaoLanterna, "falta o botao da lanterna");
+        Assert.IsFalse(ui.botaoLanterna.gameObject.activeSelf, "a lanterna so aparece se a camera tiver uma");
+    }
+
+    [Test]
+    public void EnsinarRotuloEstaLigadoAInterface()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        var ensinar = ui.ensinar;
+        Assert.IsNotNull(ensinar, "falta o EnsinarRotuloUI");
+        Assert.AreSame(ui.gerenciador, ensinar.gerenciador);
+        Assert.IsNotNull(ensinar.captura, "falta o CapturaRotulo");
+        Assert.IsNotNull(ui.botaoEnsinar);
+        Assert.IsTrue(ui.botaoEnsinar.transform.IsChildOf(ui.painelLeitura.transform), "o botao Ensinar fica no modo leitura");
+        Assert.IsFalse(ui.botaoEnsinar.gameObject.activeSelf, "so aparece para produto com dados e GTIN");
+        Assert.IsFalse(ensinar.painelCaptura.activeSelf);
+        Assert.IsFalse(ensinar.painelRecorte.activeSelf);
+        Assert.IsTrue(ensinar.molduraRecorte.IsChildOf(ensinar.fotoRecorte.transform), "a moldura e medida sobre a foto");
+        Assert.AreEqual(5, ensinar.molduraRecorte.GetComponentsInChildren<AlcaRecorte>(true).Length, "4 cantos e o meio");
+        Assert.AreSame(ui.controleCamera, ensinar.painelCaptura.GetComponent<ToqueParaFocar>().controleCamera);
+    }
+
+    [Test]
+    public void QuantidadeEVozFicamNoModoLeitura()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        var painel = ui.painelConsumo;
+        Assert.IsNotNull(painel, "falta o PainelConsumoUI");
+        Assert.IsTrue(painel.transform.IsChildOf(ui.painelLeitura.transform), "o painel fica no modo leitura");
+        Assert.IsFalse(painel.gameObject.activeSelf, "so aparece com um produto com dados aberto");
+        Assert.IsNotNull(painel.botaoMenos);
+        Assert.IsNotNull(painel.botaoMais);
+        Assert.IsNotNull(painel.textoQuantidade);
+        Assert.IsNotNull(painel.textoResultado);
+        Assert.IsNotNull(painel.botaoOuvir);
+        Assert.IsTrue(painel.textoOuvir.transform.IsChildOf(painel.botaoOuvir.transform));
+        // A voz fica fora do painel, que liga e desliga a cada leitura
+        Assert.IsNotNull(painel.voz, "falta o LeitorVoz");
+        Assert.IsFalse(painel.voz.transform.IsChildOf(painel.transform));
+    }
+}
