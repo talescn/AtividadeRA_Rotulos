@@ -173,6 +173,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         DateTime agora = DateTime.Now;
         string arquivo = CatalogoMarcadores.NomeArquivo(dados.gtin, agora);
         if (CriarMarcadorEnsinado(arquivo, larguraRotuloEnsinado, dados, imagem) == null) return false;
+        Debug.Log($"[RA] Rotulo ensinado: {dados.gtin}, nota {estrelas} de 5");
 
         var removidos = new List<CatalogoMarcadores.Marcador>();
         try

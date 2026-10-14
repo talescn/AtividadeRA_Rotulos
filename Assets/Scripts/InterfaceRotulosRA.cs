@@ -166,6 +166,7 @@ public class InterfaceRotulosRA : MonoBehaviour
         DadosProduto dados = gerenciador.Repositorio.BuscarSemRede(gtin);
         if (dados != null && dados.TemTabela)
         {
+            Debug.Log($"[RA] Dados de {gtin}: no aparelho (fonte {dados.fonte})");
             AbrirLeitura(dados);
             return;
         }
@@ -175,6 +176,7 @@ public class InterfaceRotulosRA : MonoBehaviour
         StartCoroutine(gerenciador.Repositorio.BuscarOpenFoodFacts(gtin, (recebidos, motivo) =>
         {
             buscandoCodigo = false;
+            Debug.Log($"[RA] Dados de {gtin}: " + (recebidos != null ? "Open Food Facts" : "sem tabela (" + motivo + ")"));
             if (recebidos != null)
             {
                 MostrarAviso(null, 0f);
@@ -367,6 +369,8 @@ public class InterfaceRotulosRA : MonoBehaviour
 
     public void FecharLeitura()
     {
+        // No diario de testes, o intervalo ate o proximo codigo lido mede quanto a leitura demora
+        if (EmLeitura) Debug.Log("[RA] Leitura fechada");
         painelLeitura.SetActive(false);
         LimparTabelaDados();
         DefinirDadosEmLeitura(null);
