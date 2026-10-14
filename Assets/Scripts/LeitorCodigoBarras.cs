@@ -35,6 +35,8 @@ public class LeitorCodigoBarras : MonoBehaviour
     }
 
     readonly LeituraEstavel confirmacao = new LeituraEstavel();
+    // Tempo de cada tentativa no diario: do primeiro quadro com codigo ate a confirmacao (ou ate desistir)
+    readonly MedidaLeitura medida = new MedidaLeitura();
     PixelFormat formato = PixelFormat.UNKNOWN_FORMAT;
     int bytesPorPixel;
     bool registrado;
@@ -112,6 +114,7 @@ public class LeitorCodigoBarras : MonoBehaviour
         }
 
         if (registrado && Ativo && Time.unscaledTime >= proximoRelatorio) Relatar();
+        EncerrarTentativaSemLeitura();
 
         // Resultado da leitura que estava rodando em outra thread
         if (leituraEmAndamento == null || !leituraEmAndamento.IsCompleted) return;
@@ -126,12 +129,23 @@ public class LeitorCodigoBarras : MonoBehaviour
         }
         Leitura leitura = tarefa.Result;
         Contabilizar(leitura);
-        string confirmado = confirmacao.Registrar(leitura.codigo, Time.unscaledTime);
+        float agora = Time.unscaledTime;
+        // O codigo recem-aceito, ainda na frente da camera, nao comeca outra tentativa
+        if (Ativo && !confirmacao.Silenciado(leitura.codigo, agora)) medida.Registrar(leitura.codigo, agora);
+        string confirmado = confirmacao.Registrar(leitura.codigo, agora);
         if (confirmado != null && Ativo)
         {
-            Debug.Log("[RA] Codigo de barras lido: " + confirmado);
+            Debug.Log("[RA] Codigo de barras lido: " + medida.Confirmar(confirmado, agora));
             AoLerCodigo?.Invoke(confirmado);
         }
+    }
+
+    // Uma tentativa acaba sem leitura quando o leitor desliga (um rotulo entrou na camera, por exemplo) ou depois
+    // de alguns segundos sem nenhum codigo
+    void EncerrarTentativaSemLeitura()
+    {
+        string resumo = Ativo ? medida.VerificarSilencio(Time.unscaledTime) : medida.Abandonar(Time.unscaledTime);
+        if (resumo != null) Debug.Log("[RA] Codigo visto sem leitura: " + resumo);
     }
 
     void AoAtualizarEstado()

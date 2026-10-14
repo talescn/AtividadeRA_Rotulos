@@ -38,4 +38,10 @@ public class LeituraEstavel
         repeticoes = 0;
         return codigo;
     }
+
+    // O codigo acabou de ser aceito e ainda e ignorado (a mesma embalagem continua na frente da camera)
+    public bool Silenciado(string codigo, float agora)
+    {
+        return codigo != null && codigo == aceito && agora - aceitoEm < silencioSegundos;
+    }
 }

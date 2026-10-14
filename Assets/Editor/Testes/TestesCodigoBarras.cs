@@ -96,6 +96,20 @@ public class TestesCodigoBarras
         Assert.AreEqual("78939745", confirmacao.Registrar("78939745", 9.3f), "passado o silencio, vale de novo");
     }
 
+    [Test]
+    public void SoOCodigoAceitoFicaSilenciadoEPorPoucoTempo()
+    {
+        var confirmacao = new LeituraEstavel(2, 1.5f, 8f);
+        Assert.IsFalse(confirmacao.Silenciado("78939745", 0f), "nada aceito ainda");
+        confirmacao.Registrar("78939745", 0f);
+        confirmacao.Registrar("78939745", 0.3f);
+
+        Assert.IsTrue(confirmacao.Silenciado("78939745", 1f));
+        Assert.IsFalse(confirmacao.Silenciado("7898215157403", 1f), "outro codigo");
+        Assert.IsFalse(confirmacao.Silenciado(null, 1f));
+        Assert.IsFalse(confirmacao.Silenciado("78939745", 8.3f), "passado o silencio");
+    }
+
     // Imagem em tons de cinza (0 = barra, 255 = fundo), como a camera entrega no formato GRAYSCALE
     static byte[] GerarCinza(string codigo, BarcodeFormat formato, out int largura, out int altura)
     {
