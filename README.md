@@ -11,6 +11,7 @@ Aplicação de **Realidade Aumentada baseada em marcadores** feita com **Unity +
 5. A interface ([`InterfaceRotulosRA`](Assets/Scripts/InterfaceRotulosRA.cs)) deixa ampliar a tabela em RA e abrir o **modo leitura**, com a tabela em tela cheia.
 6. Sem nenhum rótulo na câmera, o app procura um **código de barras**. Com o GTIN lido, ele busca os dados e abre a tabela no modo leitura, inclusive de produtos que não têm rótulo cadastrado.
 7. Com a tabela aberta, o botão **Ensinar rótulo** transforma o rótulo daquele produto num marcador novo, criado no próprio celular. Daí em diante a tabela aparece em RA sobre ele, como nos produtos da cena.
+8. A tabela traz no alto a **lupa "ALTO EM"** da rotulagem frontal, calculada pelos dados. No modo leitura, um painel mostra os carboidratos na **quantidade** que a pessoa vai consumir, e o botão **Ouvir** lê um resumo do produto em **voz** alta.
 
 Não há nenhum marcador fixo no projeto: trocar de produto é trocar a foto do rótulo e o JSON com os dados, ou ensinar o rótulo no app.
 
@@ -52,6 +53,42 @@ A nota ([`QualidadeMarcador`](Assets/Scripts/QualidadeMarcador.cs)) existe porqu
 
 Os marcadores ensinados ficam no aparelho ([`CatalogoMarcadores`](Assets/Scripts/CatalogoMarcadores.cs)): um PNG por vista e o índice `marcadores.json` em `persistentDataPath/Marcadores`, com `gtin`, `arquivo`, `larguraMetros`, `estrelas` e `criadoEm`. Quando o app abre, eles voltam junto com os produtos da cena. O tamanho real do rótulo não é medido: o marcador usa 8 cm e a tabela tem a mesma largura dele, então ela fica na proporção certa em qualquer rótulo (o zoom continua valendo).
 
+## Lupa, quantidade e voz
+
+### Lupa "ALTO EM"
+
+O [`RotulagemFrontal`](Assets/Scripts/RotulagemFrontal.cs) calcula, pela tabela, a lupa da rotulagem nutricional frontal. A [`TabelaNutricionalUI`](Assets/Scripts/TabelaNutricionalUI.cs) desenha essa lupa no alto da tabela, em RA e no modo leitura, no estilo da do rótulo.
+
+| Nutriente | Sólido (por 100 g) | Líquido (por 100 ml) |
+|---|---|---|
+| Açúcar adicionado | 15 g | 7,5 g |
+| Gordura saturada | 6 g | 3 g |
+| Sódio | 600 mg | 300 mg |
+
+- **Limites:** são os do Anexo XV da IN 75/2020, com "maior ou igual".
+- **Base do cálculo:** o alimento é avaliado como é vendido ou, se precisa de preparo, pronto para o consumo (RDC 429/2020, art. 19). No Maggi vale a coluna do prato pronto, com 298 mg de sódio por 100 ml, logo abaixo do limite.
+- **Dado ausente:** o nutriente fica "sem dado", nunca "abaixo". A Fanta, de rótulo antigo e sem açúcar adicionado declarado, mostra "Sem dado de açúcar adicionado neste rótulo".
+- **Isenções:** o Anexo XVI da IN 75 proíbe a lupa em alguns alimentos, como leites, queijos e óleos. O JSON registra isso no campo `isencaoLupa`, como no Ninho.
+- **Referência:** a tabela avisa que a lupa foi calculada pelo app. A referência continua sendo a lupa impressa na embalagem.
+
+### Quantidade
+
+No modo leitura, o painel de baixo mostra "Vou consumir: [-] 200 ml [+]" e os carboidratos, os açúcares e as calorias nessa quantidade ([`CalculosPorcao`](Assets/Scripts/CalculosPorcao.cs)).
+
+- A quantidade começa na porção do rótulo, e os botões andam 50 ml ou 10 g.
+- No Maggi, a quantidade é do prato pronto, em ml.
+- O app só informa gramas: **não calcula dose de insulina**.
+
+### Voz
+
+O botão **Ouvir** lê um resumo montado pelo [`ResumoFalado`](Assets/Scripts/ResumoFalado.cs):
+
+- primeiro o nome e os alertas da lupa;
+- depois a energia, os carboidratos, os açúcares, a gordura saturada e o sódio da porção, com as unidades por extenso;
+- se a quantidade escolhida for outra, os carboidratos nela.
+
+O [`LeitorVoz`](Assets/Scripts/LeitorVoz.cs) usa o TextToSpeech do Android, em português do Brasil. Desde o Android 11, o app só encontra o serviço de voz se o manifesto declarar esse serviço, e o [`AjustarManifestoAndroid`](Assets/Editor/AjustarManifestoAndroid.cs) faz isso no build. No Editor do Windows, ele usa a voz do Windows. Tocar de novo no botão, que vira **Parar**, interrompe a fala.
+
 ## Diário de testes
 
 No celular, o [`DiarioTestes`](Assets/Scripts/DiarioTestes.cs) guarda num arquivo as linhas `[RA]` do log e os erros, para medir um teste feito longe do computador, como num mercado, onde o celular fica sem cabo e o `logcat` se perde.
@@ -85,6 +122,7 @@ Cada produto tem um JSON em `Assets/Resources/Produtos/{gtin}.json`, transcrito 
 | `base100`, `observacaoBase100` | a que a coluna "por 100" se refere (no Maggi, ao alimento pronto) |
 | `nutrientes` | `chave`, `nome`, `unidade`, valor por 100, valor por porção, `%VD` e nível de recuo |
 | `ingredientes`, `alergenos` | lista de ingredientes e a frase "ALÉRGICOS: ..." (nulos por enquanto: as fotos não mostram) |
+| `isencaoLupa` | por que a lupa "ALTO EM" não pode aparecer no produto (IN 75/2020, Anexo XVI); só no Ninho |
 
 O [`RepositorioProdutos`](Assets/Scripts/RepositorioProdutos.cs) busca os dados nesta ordem:
 
@@ -177,6 +215,11 @@ Assets/
 │   ├── ToqueParaFocar.cs        toque na tela de captura pede foco
 │   ├── CalculosGestos.cs        contas do zoom, da pinça e do arrasto
 │   ├── DiarioTestes.cs          guarda as linhas [RA] do log num arquivo no celular
+│   ├── RotulagemFrontal.cs      lupa "ALTO EM" calculada pela tabela (IN 75/2020)
+│   ├── CalculosPorcao.cs        nutrientes na quantidade que a pessoa vai consumir
+│   ├── PainelConsumoUI.cs       painel da quantidade e botão Ouvir no modo leitura
+│   ├── ResumoFalado.cs          texto lido pelo botão Ouvir
+│   ├── LeitorVoz.cs             voz do Android (TextToSpeech) e do Windows (no Editor)
 │   └── AjustarAreaSegura.cs     mantém os controles fora do entalhe e das barras do sistema
 ├── Editor/
 │   ├── MontarCenaAtividade.cs   menu que monta a cena automaticamente
@@ -184,6 +227,7 @@ Assets/
 │   ├── MontarEnsinoRA.cs        cria as telas de captura e de recorte do "Ensinar rótulo"
 │   ├── GerarBuildAndroid.cs     menu que configura o Android e gera o APK
 │   ├── GerarPreviaTabelas.cs    menu que salva um PNG de cada tabela em Builds/Previas
+│   ├── AjustarManifestoAndroid.cs  declara o serviço de voz no manifesto do Android
 │   └── Testes/                  testes de EditMode
 ├── Plugins/ZXing/               ZXing.Net (DLL, licença e origem)
 ├── TextMesh Pro/                recursos essenciais do TextMeshPro (fonte e configurações)
@@ -192,7 +236,7 @@ Assets/
 
 ## Testes
 
-Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Há também o diário de testes, gravado numa pasta temporária. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Há também o diário de testes, gravado numa pasta temporária; a lupa (os quatro produtos e os valores no limite), as contas de quantidade, o texto falado e o comando da voz do Windows, que não deixa aspas do texto saírem da string do PowerShell; e a consulta ao serviço de voz no manifesto. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
 
 ```bash
 Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
@@ -242,12 +286,14 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 - O giro do quadro ensinado supõe o sensor da câmera virado 90°, como no realme 15T. Num aparelho com o sensor virado 270°, a tabela apareceria de cabeça para baixo.
 - A cobertura do Open Food Facts para produtos brasileiros é **desigual**: em outubro de 2026, o Ninho tinha a tabela igual à do rótulo, o Sprite 200 ml e a Fanta Uva 200 ml não tinham nenhum nutriente (a Fanta só a foto da tabela) e o Maggi 68 g tinha valores inconsistentes.
 - Reconhecimento menos estável em superfícies curvas e com reflexo.
+- A lupa é **calculada pelo app**. Quando o preparo leva outro ingrediente além de água, a coluna "pronto para o consumo" do rótulo inclui esse ingrediente, e a lupa calculada pode ficar acima da oficial.
+- O app não sabe a categoria dos produtos do Open Food Facts. Um leite ou queijo vindo da base pode ganhar uma lupa que o Anexo XVI proíbe.
 
 ## Ideias de evolução
 
 - Apagar os marcadores ensinados de um produto pelo próprio app.
 - Ler o texto do rótulo com **OCR** e extrair a tabela nutricional e os ingredientes automaticamente.
-- Destacar **alérgenos e substâncias** que cada pessoa quer evitar, e ler a tabela em voz alta.
+- Destacar **alérgenos e substâncias** que cada pessoa quer evitar, com um perfil salvo só no aparelho.
 - Escalar para um **catálogo maior** de produtos, por exemplo com o Cloud Recognition do Vuforia.
 - Gerar o build para **iOS**.
 
