@@ -18,10 +18,14 @@ public class PainelConsumoUI : MonoBehaviour
 
     const string RotuloOuvir = "Ouvir";
     const string RotuloParar = "Parar";
+    const string RotuloSemVoz = "Sem voz";
+    // Quanto tempo o botao mostra "Sem voz" quando o aparelho nao consegue falar
+    const float TempoSemVoz = 2.5f;
 
     DadosProduto dados;
     float quantidade;
     string unidade;
+    float semVozAte;
 
     void Awake()
     {
@@ -32,7 +36,8 @@ public class PainelConsumoUI : MonoBehaviour
 
     void Update()
     {
-        string rotulo = voz != null && voz.Falando ? RotuloParar : RotuloOuvir;
+        string rotulo = voz != null && voz.Falando ? RotuloParar
+            : Time.unscaledTime < semVozAte ? RotuloSemVoz : RotuloOuvir;
         if (textoOuvir.text != rotulo) textoOuvir.text = rotulo;
     }
 
@@ -75,6 +80,6 @@ public class PainelConsumoUI : MonoBehaviour
     {
         if (dados == null || voz == null) return;
         if (voz.Falando) voz.Parar();
-        else voz.Falar(ResumoFalado.Montar(dados, quantidade));
+        else if (!voz.Falar(ResumoFalado.Montar(dados, quantidade))) semVozAte = Time.unscaledTime + TempoSemVoz;
     }
 }
