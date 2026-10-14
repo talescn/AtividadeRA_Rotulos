@@ -237,7 +237,12 @@ public class GerenciadorRotulosRA : MonoBehaviour
         var item = emCena.Find(i => i.nomeMarcador == nomeMarcador);
         if (item == null) return;
         emCena.Remove(item);
-        if (rastreados.Remove(item)) AoMudarRastreamento?.Invoke();
+        if (rastreados.Remove(item))
+        {
+            // Outra vista do mesmo produto na camera passa a mostrar a tabela
+            AtualizarTabelasVisiveis();
+            AoMudarRastreamento?.Invoke();
+        }
         Destroy(item.target.gameObject);
         Destroy(item.produto.rotulo);
         Debug.Log("[RA] Marcador removido (vista mais antiga do produto): " + nomeMarcador);
@@ -248,8 +253,10 @@ public class GerenciadorRotulosRA : MonoBehaviour
         if (dados == null) return;
         Debug.Log($"[RA] Dados do Open Food Facts para {item.produto.nome}");
         DefinirTabela(item, dados);
-        // A tabela nova nasce depois do evento de rastreamento: liga ou desliga conforme o rotulo esta visivel
-        DefinirVisivel(item.tabela, item.rastreado);
+        // A tabela nova nasce depois do evento de rastreamento: comeca escondida e aparece se o rotulo esta
+        // visivel e e a vista que mostra a tabela do produto
+        DefinirVisivel(item.tabela, false);
+        AtualizarTabelasVisiveis();
     }
 
     // Troca a tabela do target: desenhada a partir dos dados ou, sem dados, a foto
@@ -344,7 +351,19 @@ public class GerenciadorRotulosRA : MonoBehaviour
         item.rastreado = rastreado;
         rastreados.Remove(item);
         if (rastreado) rastreados.Add(item);
+        AtualizarTabelasVisiveis();
         AoMudarRastreamento?.Invoke();
+    }
+
+    // Uma tabela por produto: com duas vistas ensinadas do mesmo rotulo na camera, so a que entrou primeiro
+    // mostra a tabela; quando ela sai, a outra assume. O handler do Vuforia ja ligou a tabela antes de avisar,
+    // e ela e escondida na mesma chamada, sem chegar a ser desenhada.
+    void AtualizarTabelasVisiveis()
+    {
+        var gtins = new List<string>();
+        foreach (var r in rastreados) gtins.Add(r.produto.gtin);
+        bool[] mostrar = CalculosRastreio.QuaisMostrar(gtins);
+        for (int i = 0; i < rastreados.Count; i++) DefinirVisivel(rastreados[i].tabela, mostrar[i]);
     }
 
     // Faz o mesmo que o DefaultObserverEventHandler, para uma tabela criada depois do evento
