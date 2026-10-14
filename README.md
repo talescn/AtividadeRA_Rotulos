@@ -33,7 +33,7 @@ Quando nenhum rótulo está na câmera, a faixa do topo mostra "Aponte para o r�
 
 - A leitura usa o [ZXing.Net](https://github.com/micjahn/ZXing.Net/) 0.16.11 (Apache-2.0), em `Assets/Plugins/ZXing`. O leitor do próprio Vuforia exige o plano Premium para publicar.
 - Com o celular em retrato, o código na horizontal da tela chega deitado na imagem da câmera: o decodificador tenta essa orientação primeiro e não perde tempo com as quatro rotações do `AutoRotate` (cerca de 2× mais rápido nos quadros sem código).
-- Um código só vale depois de duas leituras iguais e com o dígito verificador correto. O mesmo código é ignorado por 8 s depois de aceito.
+- Um código só vale depois de duas leituras iguais e com o dígito verificador correto; o **EAN-8 exige três**, porque um pedaço de um EAN-13 às vezes sai como um EAN-8 com dígito verificador válido. O mesmo código é ignorado por 8 s depois de aceito.
 - O botão **Lanterna** (canto de cima) acende a luz do celular, e tocar na tela fora da tabela pede um foco naquele ponto. O [`ControleCamera`](Assets/Scripts/ControleCamera.cs) liga o foco contínuo sempre que o Vuforia começa ou volta de uma pausa.
 - A cada 5 s o log mostra quantos quadros o leitor processou e quanto tempo levaram (`[RA] Leitor: ...`). Para guardar alguns quadros da câmera e examinar no computador, crie o arquivo `salvar_quadros` na pasta do app (`adb shell touch /sdcard/Android/data/com.talescn.rotulosra/files/salvar_quadros`): até 40 quadros vão para `Quadros/*.pgm`.
 - Com o GTIN, os dados vêm do JSON local, do cache ou do Open Food Facts, nessa ordem. Se não houver tabela, a faixa diz o motivo: fora da base, na base sem tabela, sem conexão ou valores impossíveis.
@@ -99,6 +99,7 @@ No celular, o [`DiarioTestes`](Assets/Scripts/DiarioTestes.cs) guarda num arquiv
 - Entram o código lido, a origem dos dados (`no aparelho`, `Open Food Facts` ou `sem tabela` com o motivo), o fechamento de cada leitura, a nota de cada rótulo ensinado e as idas e voltas do app ao primeiro plano. Um `Diario iniciado` sem um `App fora de foco` antes indica que o app caiu.
 - Cada leitura de código diz quanto tempo levou desde o primeiro quadro em que um código foi decodificado, e se o leitor viu outros números no caminho ([`MedidaLeitura`](Assets/Scripts/MedidaLeitura.cs)): `Codigo de barras lido: 78939745 em 0,4 s (2 quadros com codigo, outros codigos: nenhum)`. Um código visto que nunca foi confirmado vira `Codigo visto sem leitura`. O tempo em que a pessoa mira antes do primeiro quadro decodificado não entra.
 - A saída de um rótulo da câmera diz quantas quedas curtas do rastreamento a espera de meio segundo segurou: `Rotulo saiu da camera: ... (2 quedas curtas)`.
+- O estado térmico do Android entra na primeira medida e a cada mudança, consultado a cada 10 s ([`MonitorTemperatura`](Assets/Scripts/MonitorTemperatura.cs)): `Temperatura: estado termico 3 (severo)`. Com o celular quente o leitor fica mais lento, e a linha explica um teste com tempos piores.
 - Uma linha repetida em seguida vira uma só, com a contagem; a pasta é recriada se for apagada com o app aberto; e o diário só desliga depois de 3 falhas de disco seguidas.
 - No Editor o diário fica desligado, porque o Console já mostra o log.
 - O arquivo não tem dados pessoais: só GTINs, horários e o modelo do aparelho.
@@ -115,7 +116,7 @@ Dois testes no realme 15T com produtos de mercado, medidos pelo diário. Os crit
 
 - **1º teste (18:10, cerca de 13 min):** 8 leituras de 6 produtos e 12 vistas ensinadas. Dos 5 produtos fora do app, 4 vieram com tabela do Open Food Facts. O diário mostrou três problemas: a tabela piscava (31 de 62 saídas do rastreamento voltavam em até 0,5 s), duas vistas do mesmo produto mostravam duas tabelas por cerca de 11 s, e não dava para medir o tempo das leituras.
 - **Correções:** a medida de cada leitura no diário, uma tabela por produto e a espera de meio segundo antes de esconder a tabela.
-- **2º teste (18:43, cerca de 3 min):** as voltas em até 0,5 s caíram de 31 para 2 (as que sobraram eram quedas de 0,8 a 0,9 s) e a espera segurou 2 quedas curtas. Duas vistas do mesmo produto foram reconhecidas juntas 4 vezes e a lógica deixou uma tabela só, mas o diário não grava o que foi desenhado: a confirmação visual fica para o próximo teste. A medida nova mostrou leituras falsas de EAN-8 (`89647714` no meio da leitura de 7,1 s, `41507377` sozinho).
+- **2º teste (18:43, cerca de 3 min):** as voltas em até 0,5 s caíram de 31 para 2 (as que sobraram eram quedas de 0,8 a 0,9 s) e a espera segurou 2 quedas curtas. Duas vistas do mesmo produto foram reconhecidas juntas 4 vezes e a lógica deixou uma tabela só, mas o diário não grava o que foi desenhado: a confirmação visual fica para o próximo teste. A medida nova mostrou leituras falsas de EAN-8 (`89647714` no meio da leitura de 7,1 s, `41507377` sozinho); depois disso o EAN-8 passou a exigir três leituras iguais, e o diário passou a gravar o estado térmico do celular.
 - **Celular quente:** no fim do 2º teste o Android estava em estado térmico severo (49 °C na carcaça). O leitor levou 130 ms por quadro, contra 83 ms no uso do 1º teste e 72 ms com o mesmo app parado depois dele, já com os mesmos 19 marcadores; criar os marcadores na abertura demorou cerca de 8 s.
 - **Para fechar o critério de leitura:** um teste no mercado com 8 a 10 leituras e o celular frio.
 
@@ -223,7 +224,7 @@ Assets/
 │   ├── LimiteRequisicoes.cs     limite de consultas por minuto
 │   ├── LeitorCodigoBarras.cs    lê o código de barras na imagem da câmera do Vuforia
 │   ├── DecodificadorBarras.cs   decodifica EAN-13, EAN-8 e UPC-A com o ZXing
-│   ├── LeituraEstavel.cs        confirma o código em duas leituras iguais
+│   ├── LeituraEstavel.cs        confirma o código em duas leituras iguais (três no EAN-8)
 │   ├── MedidaLeitura.cs         tempo de cada tentativa de leitura, para o diário
 │   ├── ControleCamera.cs        foco contínuo, foco pelo toque e lanterna
 │   ├── EnsinarRotuloUI.cs       fluxo do "Ensinar rótulo": captura, recorte, nota e criação do marcador
@@ -239,6 +240,8 @@ Assets/
 │   ├── ToqueParaFocar.cs        toque na tela de captura pede foco
 │   ├── CalculosGestos.cs        contas do zoom, da pinça e do arrasto
 │   ├── DiarioTestes.cs          guarda as linhas [RA] do log num arquivo no celular
+│   ├── MonitorTemperatura.cs    consulta o estado térmico do Android a cada 10 s
+│   ├── EstadoTermico.cs         texto da linha de temperatura do diário
 │   ├── RotulagemFrontal.cs      lupa "ALTO EM" calculada pela tabela (IN 75/2020)
 │   ├── CalculosPorcao.cs        nutrientes na quantidade que a pessoa vai consumir
 │   ├── PainelConsumoUI.cs       painel da quantidade e botão Ouvir no modo leitura
@@ -260,7 +263,7 @@ Assets/
 
 ## Testes
 
-Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Há também o diário de testes, gravado numa pasta temporária; a lupa (os quatro produtos, os valores no limite e o produto sem saber se é líquido), as contas de quantidade, o texto falado e o comando da voz do Windows, que recebe o texto por variável de ambiente e nunca dentro do comando; a consulta ao serviço de voz no manifesto; a medida de cada leitura de código; a escolha de uma tabela por produto; e a espera antes de esconder a tabela. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Há também o diário de testes, gravado numa pasta temporária; a lupa (os quatro produtos, os valores no limite e o produto sem saber se é líquido), as contas de quantidade, o texto falado e o comando da voz do Windows, que recebe o texto por variável de ambiente e nunca dentro do comando; a consulta ao serviço de voz no manifesto; a medida de cada leitura de código e as três leituras exigidas do EAN-8; a escolha de uma tabela por produto; a espera antes de esconder a tabela; e o texto da linha de temperatura. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
 
 ```bash
 Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
@@ -313,7 +316,7 @@ O campo `distanciaFrente` define o quanto a tabela fica à frente da superfície
 - Reconhecimento menos estável em superfícies curvas e com reflexo.
 - A lupa é **calculada pelo app**. Quando o preparo leva outro ingrediente além de água, a coluna "pronto para o consumo" do rótulo inclui esse ingrediente, e a lupa calculada pode ficar acima da oficial.
 - O app não sabe a categoria dos produtos do Open Food Facts. Um leite ou queijo vindo da base pode ganhar uma lupa que o Anexo XVI proíbe.
-- O ZXing às vezes lê um pedaço de um EAN-13 como um **EAN-8 falso** (no teste de 14/10/2026, `89647714` e `41507377`). As duas leituras iguais exigidas evitam abrir o produto errado, mas o falso atrasa a leitura do certo.
+- O ZXing às vezes lê um pedaço de um EAN-13 como um **EAN-8 falso** (no teste de 14/10/2026, `89647714` e `41507377`). Por isso o EAN-8 exige três leituras iguais em vez de duas, o que custa um quadro a mais nos EAN-8 de verdade, como a Sprite e a Fanta. Um falso ainda pode atrasar a leitura do código certo.
 - Com o celular quente, o leitor fica mais lento (130 ms por quadro, contra 72 a 83 ms) e a abertura também: com 19 marcadores, criar todos levou cerca de 8 s, e o leitor de código só começa depois disso.
 - Depois que o produto sai da câmera, a tabela fica parada por até meio segundo antes de sumir.
 
