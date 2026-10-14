@@ -52,6 +52,16 @@ A nota ([`QualidadeMarcador`](Assets/Scripts/QualidadeMarcador.cs)) existe porqu
 
 Os marcadores ensinados ficam no aparelho ([`CatalogoMarcadores`](Assets/Scripts/CatalogoMarcadores.cs)): um PNG por vista e o índice `marcadores.json` em `persistentDataPath/Marcadores`, com `gtin`, `arquivo`, `larguraMetros`, `estrelas` e `criadoEm`. Quando o app abre, eles voltam junto com os produtos da cena. O tamanho real do rótulo não é medido: o marcador usa 8 cm e a tabela tem a mesma largura dele, então ela fica na proporção certa em qualquer rótulo (o zoom continua valendo).
 
+## Diário de testes
+
+No celular, o [`DiarioTestes`](Assets/Scripts/DiarioTestes.cs) guarda num arquivo as linhas `[RA]` do log e os erros, para medir um teste feito longe do computador, como num mercado, onde o celular fica sem cabo e o `logcat` se perde.
+
+- Os arquivos ficam em `Android/data/com.talescn.rotulosra/files/Diario`, um por dia (`diario_AAAAMMDD.txt`), com hora, tipo e mensagem separados por tabulação. Cada arquivo para de crescer em 5 MB.
+- Para copiar: `adb pull /sdcard/Android/data/com.talescn.rotulosra/files/Diario`.
+- Entram o código lido, a origem dos dados (`no aparelho`, `Open Food Facts` ou `sem tabela` com o motivo), o fechamento de cada leitura, a nota de cada rótulo ensinado e as idas e voltas do app ao primeiro plano. Um `Diario iniciado` sem um `App fora de foco` antes indica que o app caiu.
+- No Editor o diário fica desligado, porque o Console já mostra o log.
+- O arquivo não tem dados pessoais: só GTINs, horários e o modelo do aparelho.
+
 ## Produtos de teste
 
 | Produto | GTIN | Marcador | Tabela |
@@ -166,6 +176,7 @@ Assets/
 │   ├── AlcaRecorte.cs           alças que arrastam o retângulo
 │   ├── ToqueParaFocar.cs        toque na tela de captura pede foco
 │   ├── CalculosGestos.cs        contas do zoom, da pinça e do arrasto
+│   ├── DiarioTestes.cs          guarda as linhas [RA] do log num arquivo no celular
 │   └── AjustarAreaSegura.cs     mantém os controles fora do entalhe e das barras do sistema
 ├── Editor/
 │   ├── MontarCenaAtividade.cs   menu que monta a cena automaticamente
@@ -181,7 +192,7 @@ Assets/
 
 ## Testes
 
-Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
+Os testes de EditMode ficam em `Assets/Editor/Testes`: contas do zoom e da pinça, a estrutura da cena montada pelo menu, as configurações de Android, os JSONs dos produtos (campos, dígito do GTIN e valor energético contra 4 × carboidratos + 4 × proteínas + 9 × gorduras, com tolerância de 15%), o repositório, a tabela desenhada, o leitor de código de barras (com imagens geradas pelo próprio ZXing, inclusive giradas) e o "Ensinar rótulo": operações na imagem, a nota do marcador com a foto real do Maggi (inteira, borrada, com reflexo e pequena), o retângulo de recorte e o catálogo numa pasta temporária. Há também o diário de testes, gravado numa pasta temporária. Nenhum teste usa a rede nem a câmera. Rode por *Window > General > Test Runner > EditMode* ou pela linha de comando, com o Unity fechado:
 
 ```bash
 Unity.exe -batchmode -projectPath . -runTests -testPlatform EditMode -testResults resultados.xml
