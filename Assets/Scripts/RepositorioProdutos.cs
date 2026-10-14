@@ -18,7 +18,7 @@ public class RepositorioProdutos
     public const string PastaRecursos = "Produtos";
     public const string Contato = "https://github.com/talescn/AtividadeRA_Rotulos";
     // So os campos que o app usa
-    public const string Campos = "code,product_name,product_name_pt,brands,serving_size,serving_quantity," +
+    public const string Campos = "code,product_name,product_name_pt,brands,serving_size,serving_quantity,quantity," +
                                  "nutriments,ingredients_text_pt,ingredients_text,last_modified_t";
     const string UrlProduto = "https://world.openfoodfacts.org/api/v2/product/{0}.json?fields={1}";
     const int TempoLimiteSegundos = 10;
@@ -188,7 +188,10 @@ public class RepositorioProdutos
             porcao = Porcao(Texto(produto["serving_size"]), Numero(produto["serving_quantity"])),
             ingredientes = Texto(produto["ingredients_text_pt"]) ?? Texto(produto["ingredients_text"])
         };
-        dados.base100 = dados.porcao != null && dados.porcao.unidade == "ml" ? "100 ml" : "100 g";
+        // O OFF guarda "_100g" tambem para liquidos (ai e por 100 ml): a porcao ou, sem ela, a embalagem diz qual.
+        // Sem nenhuma das duas fica null, e a lupa so decide o que nao depende disso.
+        string unidade = UnidadeMedida(Texto(produto["serving_size"])) ?? UnidadeMedida(Texto(produto["quantity"]));
+        dados.base100 = unidade != null ? "100 " + unidade : null;
 
         var nutrientes = produto["nutriments"] as JObject;
         if (nutrientes != null)
@@ -266,6 +269,15 @@ public class RepositorioProdutos
                 porcao.quantidade = float.Parse(achado.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
         }
         return porcao;
+    }
+
+    // "350 ml", "1 L" ou "1 serving (200 ml)" -> "ml"; "200 g" ou "1 kg" -> "g"; sem medida reconhecida, null
+    static string UnidadeMedida(string texto)
+    {
+        if (texto == null) return null;
+        var achado = Regex.Match(texto, @"\d+(?:[.,]\d+)?\s*(ml|cl|dl|l|kg|mg|g)\b", RegexOptions.IgnoreCase);
+        if (!achado.Success) return null;
+        return achado.Groups[1].Value.ToLowerInvariant().EndsWith("l") ? "ml" : "g";
     }
 
     static string Texto(JToken token)
