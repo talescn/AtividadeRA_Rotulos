@@ -50,6 +50,8 @@ public class DiarioTestes
         // Um "Diario iniciado" sem um "fora de foco" antes dele indica que o app caiu
         Application.focusChanged += foco => Debug.Log(foco ? "[RA] App em primeiro plano" : "[RA] App fora de foco");
         Debug.Log($"[RA] Diario iniciado: app {Application.version}, {SystemInfo.deviceModel}, {SystemInfo.operatingSystem}");
+        // Celular quente deixa o leitor de codigo de barras mais lento: o estado termico entra no diario quando muda
+        if (Application.platform == RuntimePlatform.Android) MonitorTemperatura.Criar();
         // Aqui ja da para avisar pelo log: o registro acima passou pelo diario e voltou
         if (ativo.Desligado) Debug.LogWarning("[RA] Diario de testes desligado: " + ativo.MotivoDesligado);
     }
