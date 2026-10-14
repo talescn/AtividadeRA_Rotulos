@@ -158,4 +158,23 @@ public class TestesCenaAtividade
         Assert.AreEqual(5, ensinar.molduraRecorte.GetComponentsInChildren<AlcaRecorte>(true).Length, "4 cantos e o meio");
         Assert.AreSame(ui.controleCamera, ensinar.painelCaptura.GetComponent<ToqueParaFocar>().controleCamera);
     }
+
+    [Test]
+    public void QuantidadeEVozFicamNoModoLeitura()
+    {
+        var ui = Buscar<InterfaceRotulosRA>();
+        var painel = ui.painelConsumo;
+        Assert.IsNotNull(painel, "falta o PainelConsumoUI");
+        Assert.IsTrue(painel.transform.IsChildOf(ui.painelLeitura.transform), "o painel fica no modo leitura");
+        Assert.IsFalse(painel.gameObject.activeSelf, "so aparece com um produto com dados aberto");
+        Assert.IsNotNull(painel.botaoMenos);
+        Assert.IsNotNull(painel.botaoMais);
+        Assert.IsNotNull(painel.textoQuantidade);
+        Assert.IsNotNull(painel.textoResultado);
+        Assert.IsNotNull(painel.botaoOuvir);
+        Assert.IsTrue(painel.textoOuvir.transform.IsChildOf(painel.botaoOuvir.transform));
+        // A voz fica fora do painel, que liga e desliga a cada leitura
+        Assert.IsNotNull(painel.voz, "falta o LeitorVoz");
+        Assert.IsFalse(painel.voz.transform.IsChildOf(painel.transform));
+    }
 }

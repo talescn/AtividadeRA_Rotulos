@@ -110,7 +110,8 @@ public static class MontarInterfaceRA
         // O visor vem primeiro para que titulo e botoes fiquem por cima da tabela ampliada
         var visor = new GameObject("VisorLeitura", typeof(RectTransform)).GetComponent<RectTransform>();
         visor.SetParent(areaLeitura, false);
-        Ancorar(visor, Vector2.zero, Vector2.one, new Vector2(0f, 290f), new Vector2(0f, -170f));
+        // Embaixo ficam o painel da quantidade e os botoes Ensinar e Ouvir
+        Ancorar(visor, Vector2.zero, Vector2.one, new Vector2(0f, 560f), new Vector2(0f, -170f));
         ui.visorLeitura = visor;
 
         // Foto da tabela: so aparece quando o produto nao tem dados
@@ -138,8 +139,11 @@ public static class MontarInterfaceRA
         // Transforma o rotulo do produto aberto num marcador; so aparece para produto com dados e GTIN
         ui.botaoEnsinar = CriarBotao("BotaoEnsinar", areaLeitura, recursosTMP, "Ensinar rótulo");
         Ancorar((RectTransform)ui.botaoEnsinar.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(-300f, 150f), new Vector2(300f, 270f));
+            new Vector2(-510f, 140f), new Vector2(-15f, 250f));
         ui.botaoEnsinar.gameObject.SetActive(false);
+
+        // Quantidade, carboidratos e botao Ouvir; a voz fica no Canvas, que nunca desliga
+        ui.painelConsumo = CriarPainelConsumo(areaLeitura, recursos.standard, recursosTMP, canvasGO.AddComponent<LeitorVoz>());
 
         painel.gameObject.SetActive(false);
 
@@ -148,6 +152,56 @@ public static class MontarInterfaceRA
 
         EditorUtility.SetDirty(ui);
         return ui;
+    }
+
+    // Painel do modo leitura com a quantidade ([-] 200 ml [+]), os carboidratos nela e o botao Ouvir. A raiz cobre
+    // a area segura inteira, sem imagem, para os filhos se ancorarem como os outros botoes do modo leitura.
+    static PainelConsumoUI CriarPainelConsumo(Transform areaLeitura, Sprite sprite, TMP_DefaultControls.Resources recursosTMP,
+        LeitorVoz voz)
+    {
+        var raiz = new GameObject("PainelConsumo", typeof(RectTransform)).GetComponent<RectTransform>();
+        raiz.SetParent(areaLeitura, false);
+        Ancorar(raiz, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var painel = raiz.gameObject.AddComponent<PainelConsumoUI>();
+        painel.voz = voz;
+
+        var barra = CriarImagem("BarraConsumo", raiz, CorBarra, sprite);
+        Ancorar(barra.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 270f), new Vector2(-40f, 540f));
+
+        painel.botaoMenos = CriarBotaoQuadrado("BotaoMenos", barra.transform, recursosTMP, "-", new Vector2(0f, 1f), new Vector2(20f, -15f));
+        painel.botaoMais = CriarBotaoQuadrado("BotaoMais", barra.transform, recursosTMP, "+", new Vector2(1f, 1f), new Vector2(-20f, -15f));
+
+        painel.textoQuantidade = CriarTexto("TextoQuantidade", barra.transform, "", 44, CorTextoClaro, TextAlignmentOptions.Center);
+        Ancorar(painel.textoQuantidade.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(170f, -125f), new Vector2(-170f, -15f));
+
+        painel.textoResultado = CriarTexto("TextoResultado", barra.transform, "", 36, CorTextoClaro, TextAlignmentOptions.Center);
+        Ancorar(painel.textoResultado.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 60f), new Vector2(-24f, 140f));
+        painel.textoResultado.textWrappingMode = TextWrappingModes.Normal;
+
+        var aviso = CriarTexto("AvisoInsulina", barra.transform, "Só informa gramas: não calcula dose de insulina.",
+            28, new Color(0.75f, 0.75f, 0.75f), TextAlignmentOptions.Center);
+        Ancorar(aviso.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 12f), new Vector2(-24f, 58f));
+
+        painel.botaoOuvir = CriarBotao("BotaoOuvir", raiz, recursosTMP, "Ouvir");
+        Ancorar((RectTransform)painel.botaoOuvir.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(15f, 140f), new Vector2(510f, 250f));
+        painel.textoOuvir = painel.botaoOuvir.GetComponentInChildren<TextMeshProUGUI>();
+
+        // So aparece quando a leitura abre um produto com dados
+        raiz.gameObject.SetActive(false);
+        return painel;
+    }
+
+    static Button CriarBotaoQuadrado(string nome, Transform pai, TMP_DefaultControls.Resources recursos, string rotulo,
+        Vector2 canto, Vector2 posicao)
+    {
+        var botao = CriarBotao(nome, pai, recursos, rotulo);
+        botao.GetComponentInChildren<TextMeshProUGUI>().fontSize = 64;
+        var rt = (RectTransform)botao.transform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = canto;
+        rt.sizeDelta = new Vector2(130f, 110f);
+        rt.anchoredPosition = posicao;
+        return botao;
     }
 
     internal static RectTransform CriarAreaSegura(string nome, Transform pai)
