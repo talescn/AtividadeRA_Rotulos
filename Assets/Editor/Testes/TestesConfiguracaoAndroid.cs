@@ -45,4 +45,17 @@ public class TestesConfiguracaoAndroid
     {
         Assert.AreEqual(AndroidApplicationEntry.Activity, PlayerSettings.Android.applicationEntry);
     }
+
+    [Test]
+    public void ManifestoDeclaraOServicoDeVozUmaVezSo()
+    {
+        // Desde o Android 11, sem esta consulta o TextToSpeech nao acha o mecanismo de voz
+        const string manifesto = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                                 "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application /></manifest>";
+        string ajustado = AjustarManifestoAndroid.AdicionarConsultaVoz(manifesto);
+
+        StringAssert.Contains("<queries><intent><action android:name=\"android.intent.action.TTS_SERVICE\" /></intent></queries>", ajustado);
+        StringAssert.StartsWith("<?xml version=\"1.0\" encoding=\"utf-8\"?>", ajustado);
+        Assert.AreEqual(ajustado, AjustarManifestoAndroid.AdicionarConsultaVoz(ajustado), "rodar de novo nao duplica");
+    }
 }
