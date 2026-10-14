@@ -33,6 +33,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         // Nome do marcador no Vuforia ("Rotulo_..." dos produtos da cena, "Ensinado_..." dos ensinados no app)
         public string nomeMarcador;
         public Transform target;
+        public ObservadorRotulo observador;
         public Transform tabela;
         public Vector3 escalaBase;
         public DadosProduto dados;
@@ -142,12 +143,13 @@ public class GerenciadorRotulosRA : MonoBehaviour
         }
 
         target.gameObject.name = "ImageTarget_" + nomeMarcador;
-        // Mostra/esconde os filhos automaticamente quando o rotulo e encontrado/perdido
-        var handler = target.gameObject.AddComponent<DefaultObserverEventHandler>();
+        // Mostra/esconde os filhos automaticamente quando o rotulo e encontrado/perdido, com meio segundo de
+        // espera antes de esconder para a tabela nao piscar
+        var handler = target.gameObject.AddComponent<ObservadorRotulo>();
         // So mostra a tabela enquanto o rotulo esta realmente visivel (evita tabela "fantasma")
         handler.StatusFilter = DefaultObserverEventHandler.TrackingStatusFilter.Tracked;
 
-        var item = new ProdutoEmCena { produto = p, nomeMarcador = nomeMarcador, target = target.transform };
+        var item = new ProdutoEmCena { produto = p, nomeMarcador = nomeMarcador, target = target.transform, observador = handler };
         emCena.Add(item);
         DefinirTabela(item, dados);
 
@@ -286,7 +288,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         float escala = p.larguraTabelaMetros / TabelaNutricionalUI.Largura;
         rt.localScale = new Vector3(escala, escala, escala);
 
-        // O toque na tabela e detectado neste collider; o DefaultObserverEventHandler o liga e desliga junto com o Canvas
+        // O toque na tabela e detectado neste collider; o ObservadorRotulo o liga e desliga junto com o Canvas
         go.AddComponent<BoxCollider>().size = new Vector3(tabela.sizeDelta.x, tabela.sizeDelta.y, 1f);
         return rt;
     }
@@ -296,7 +298,7 @@ public class GerenciadorRotulosRA : MonoBehaviour
         GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
         quad.name = "TabelaNutricional_" + p.nome;
         // O MeshCollider do quad fica: e nele que o toque na tabela e detectado.
-        // O DefaultObserverEventHandler desliga o collider junto com a tabela.
+        // O ObservadorRotulo desliga o collider junto com a tabela.
 
         quad.transform.SetParent(pai, false);
         // Plano do Image Target = XZ (normal +Y apontando para a camera).
@@ -346,8 +348,10 @@ public class GerenciadorRotulosRA : MonoBehaviour
     {
         // Evento atrasado de um marcador que acabou de ser removido
         if (!emCena.Contains(item)) return;
-        // No log, para medir se o rotulo fica estavel ou entra e sai da camera
-        Debug.Log($"[RA] Rotulo {(rastreado ? "na camera" : "saiu da camera")}: {item.nomeMarcador}");
+        // No log, para medir se o rotulo fica estavel: na saida, quantas quedas curtas a espera segurou
+        int quedas = rastreado ? 0 : item.observador.QuedasCurtas;
+        Debug.Log($"[RA] Rotulo {(rastreado ? "na camera" : "saiu da camera")}: {item.nomeMarcador}" +
+                  (quedas == 0 ? "" : quedas == 1 ? " (1 queda curta)" : $" ({quedas} quedas curtas)"));
         item.rastreado = rastreado;
         rastreados.Remove(item);
         if (rastreado) rastreados.Add(item);
